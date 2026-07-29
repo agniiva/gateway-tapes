@@ -1,7 +1,19 @@
 import { ensureMediaSchema, getMediaEnv } from "../../../db/media";
+import { GATEWAY_TRACK_IDS, hasExternalR2 } from "../../../db/external-r2";
 
 export async function GET() {
   try {
+    if (hasExternalR2()) {
+      return Response.json({
+        assets: GATEWAY_TRACK_IDS.map((trackId) => ({
+          trackId,
+          fileName: `${trackId}.flac`,
+          size: 0,
+          updatedAt: "",
+          url: `/api/audio/${trackId}`,
+        })),
+      });
+    }
     await ensureMediaSchema();
     const { DB } = getMediaEnv();
     const result = await DB.prepare(

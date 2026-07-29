@@ -1,9 +1,23 @@
 import { ensureMediaSchema, getMediaEnv, safeTrackId } from "../../../../db/media";
+import { fetchExternalTrack } from "../../../../db/external-r2";
 
 export async function GET(request: Request, context: { params: Promise<{ trackId: string }> }) {
   try {
     const trackId = safeTrackId((await context.params).trackId);
     if (!trackId) return new Response("Not found", { status: 404 });
+    const external = await fetchExternalTrack(trackId, request.headers.get("Range"));
+    if (external) {
+      const headers = new Headers({
+        "Accept-Ranges": external.headers.get("Accept-Ranges") || "bytes",
+        "Content-Type": external.headers.get("Content-Type") || "audio/flac",
+        "Cache-Control": "private, no-store",
+      });
+      for (const name of ["Content-Length", "Content-Range", "ETag", "Last-Modified"]) {
+        const value = external.headers.get(name);
+        if (value) headers.set(name, value);
+      }
+      return new Response(external.body, { status: external.status, headers });
+    }
     await ensureMediaSchema();
     const { DB, MEDIA } = getMediaEnv();
     const asset = await DB.prepare(
