@@ -10,18 +10,16 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     metadataBase: base,
-    title: "Swiss Audio Player",
-    description: "A strict Swiss International Style music player with functional playback controls.",
+    title: "Gateway Tapes — Private Audio Library",
+    description: "A mobile-first, stateful listening library for the six waves of the Gateway Experience.",
     openGraph: {
-      title: "Swiss Audio Player",
-      description: "Grid-first. Left-aligned. Pure minimalism.",
-      images: [{ url: new URL("/og.png", base).toString(), width: 1200, height: 630 }],
+      title: "Gateway Tapes",
+      description: "Six waves. Thirty-six sessions. One focused listening system.",
     },
     twitter: {
-      card: "summary_large_image",
-      title: "Swiss Audio Player",
-      description: "Grid-first. Left-aligned. Pure minimalism.",
-      images: [new URL("/og.png", base).toString()],
+      card: "summary",
+      title: "Gateway Tapes",
+      description: "Six waves. Thirty-six sessions. One focused listening system.",
     },
   };
 }
