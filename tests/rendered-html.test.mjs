@@ -5,12 +5,13 @@ import test from "node:test";
 const root = new URL("../", import.meta.url);
 
 test("ships direct Gateway Tapes email access and protected library", async () => {
-  const [home, authForm, library, player, layout] = await Promise.all([
+  const [home, authForm, library, player, layout, styles] = await Promise.all([
     readFile(new URL("app/page.tsx", root), "utf8"),
     readFile(new URL("app/components/ClerkAuthForm.tsx", root), "utf8"),
     readFile(new URL("app/library/page.tsx", root), "utf8"),
     readFile(new URL("app/components/GatewayPlayer.tsx", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
+    readFile(new URL("app/globals.css", root), "utf8"),
   ]);
 
   assert.match(home, /redirect\("\/library"\)/);
@@ -24,6 +25,8 @@ test("ships direct Gateway Tapes email access and protected library", async () =
   assert.match(player, /onWaiting/);
   assert.match(player, /Rewind 10 seconds/);
   assert.match(player, /Fast-forward 10 seconds/);
+  assert.match(styles, /\.transport \.play-pause \{ color: var\(--screen\); \}/);
+  assert.match(styles, /\.transport-icon \{ width: 38px; height: 38px; \}/);
   assert.match(layout, /Gateway Tapes — Listening Archive/);
   assert.doesNotMatch(`${home}\n${authForm}\n${library}\n${player}\n${layout}`, /Gateway Tape(?!s)/i);
 });
