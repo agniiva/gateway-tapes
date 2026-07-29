@@ -36,29 +36,51 @@ button { color: inherit; }
 .install-note svg { width: 17px; height: 17px; stroke-width: 2; }
 .access-privacy { margin: 18px 0 0; padding-top: 15px; border-top: 1px solid rgba(53, 50, 49, .25); font-size: 9px; line-height: 1.45; letter-spacing: .02em; color: #676163; font-weight: 500; }
 
-.auth-card { position: relative; z-index: 1; width: min(440px, 100%); border: 1px solid rgba(53, 50, 49, .3); background: rgba(232, 232, 238, .96); padding: clamp(24px, 6vw, 42px); }
-.auth-card h1 { margin: 0; font-size: clamp(38px, 10vw, 54px); line-height: .93; letter-spacing: -.055em; }
-.auth-mark { margin-bottom: 20px; }
-.auth-intro { margin: 14px 0 22px; font-size: 15px; line-height: 1.45; font-weight: 500; }
+.auth-card { position: relative; z-index: 1; width: min(420px, 100%); border: 0; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--ink); background: rgba(232, 232, 238, .97); padding: 30px 32px 28px; }
+.auth-card h1 { margin: 0; font-size: clamp(40px, 9vw, 52px); line-height: .92; letter-spacing: -.055em; }
+.auth-mark { width: 82px; height: 82px; margin-bottom: 20px; }
+.auth-intro { max-width: 34ch; margin: 14px 0 24px; font-size: 14px; line-height: 1.45; font-weight: 500; }
 .auth-setup { margin: 0; border: 1px solid #353231; padding: 16px; font-size: 13px; line-height: 1.45; font-weight: 600; }
 .clerk-root, .clerk-card-box { width: 100%; max-width: none; }
-.clerk-card-box { box-shadow: none; }
-.clerk-card { width: 100%; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.clerk-card-box { background: transparent !important; box-shadow: none !important; }
+.clerk-card { width: 100%; padding: 0; border: 0; background: transparent !important; box-shadow: none !important; }
 .clerk-title, .clerk-subtitle { display: none; }
-.clerk-primary-button { min-height: 52px; border: 0; border-radius: 0; background: #353231; box-shadow: none; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
-.clerk-primary-button:hover, .clerk-primary-button:focus { background: #6541a5; }
-.clerk-input { min-height: 50px; border: 1px solid #353231; border-radius: 0; background: #f5f4f7; box-shadow: none; font-size: 16px; }
+.clerk-field-label { margin-bottom: 7px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+.clerk-input { min-height: 46px; padding: 0; border: 0 !important; border-bottom: 2px solid var(--ink) !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; font-size: 16px; }
+.clerk-input:focus { border-bottom-color: #6541a5 !important; outline: 0; }
+.clerk-field-error { margin-top: 7px; font-size: 10px; line-height: 1.35; }
+.cl-internal-1pnppin, .clerk-root div:has(> button.cl-formButtonPrimary) { box-sizing: border-box !important; width: 100%; margin-top: 4px; padding: 1px !important; border: 0 !important; background: var(--ink) !important; }
+.clerk-primary-button { width: 100%; min-height: 46px; justify-content: flex-start; margin: 0; padding: 0 15px; border: 0 !important; border-radius: 0 !important; outline: 0 !important; background: #e8e8ee !important; color: var(--ink) !important; box-shadow: none !important; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+.clerk-primary-button:hover, .clerk-primary-button:focus { background: var(--ink) !important; color: #f4f3f7 !important; }
+.clerk-button-arrow, .cl-buttonArrowIcon { display: none !important; }
+.clerk-identity-preview { border: 1px solid var(--ink); border-radius: 0; background: transparent; box-shadow: none; }
+.clerk-footer { margin-top: 12px; padding: 0 !important; background: transparent !important; box-shadow: none !important; }
+.clerk-footer-action { justify-content: flex-start; }
+.clerk-footer-text { font-size: 10px; }
+.clerk-development-badge { border: 0; border-radius: 0; background: transparent; color: #6541a5; font-size: 9px; }
 .clerk-link { color: #6541a5; font-weight: 700; }
+.auth-install { margin-top: 22px; padding-top: 14px; border-top: 1px solid rgba(53, 50, 49, .3); }
+.auth-install b { display: block; margin-bottom: 5px; font-size: 9px; letter-spacing: .15em; }
+.auth-install p { margin: 0; font-size: 10px; line-height: 1.45; font-weight: 500; color: #5e595a; }
 
 @media (max-width: 560px) {
   .access-shell { align-items: end; padding: 12px; }
   .access-card { padding: 24px; }
   .access-mark { width: 84px; height: 84px; margin-bottom: 18px; }
   .access-intro { margin-bottom: 22px; font-size: 15px; }
-  .auth-card { padding: 24px; }
+  .auth-card { padding: 24px 20px 22px; }
+  .auth-mark { width: 72px; height: 72px; }
 }
 
 .gateway-shell { position: relative; width: 900px; min-height: 680px; margin: 0 auto; overflow: hidden; background: var(--paper); }
+
+@media (min-width: 761px) {
+  .gateway-shell { margin-top: max(0px, calc((100svh - 680px) / 2)); }
+}
+
+@media (min-width: 1000px) and (min-height: 760px) {
+  .gateway-shell { margin-top: calc((100svh - 762px) / 2); transform: scale(1.12); transform-origin: top center; }
+}
 .phone { position: absolute; top: 97px; left: 111px; width: 239px; height: 486px; padding: 4px; border: 2px solid #667078; border-radius: 42px; background: #090a0b; }
 .phone::before, .phone::after { content: ""; position: absolute; left: -4px; width: 2px; background: #43494e; }
 .phone::before { top: 98px; height: 83px; }.phone::after { top: 196px; height: 20px; }
@@ -105,6 +127,9 @@ button { color: inherit; }
 .play-pause svg[data-lucide="play"] { margin-left: 2px; }
 .transport-icon { width: 22px; height: 22px; display: grid; place-items: center; }
 .transport-icon svg { width: 17px; height: 17px; stroke-width: 2.2; }
+.skip-seconds { position: relative; }
+.skip-seconds span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 5px; line-height: 1; font-weight: 700; }
+.skip-seconds svg { width: 21px; height: 21px; }
 
 .bottom-actions { position: absolute; left: 13px; right: 13px; bottom: 28px; display: flex; justify-content: space-between; align-items: center; }
 .action-icon { appearance: none; width: 22px; height: 22px; padding: 0; border: 0; background: transparent; cursor: pointer; display: grid; place-items: center; }
@@ -177,7 +202,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #cc2b20; outline-
   .disc-hole { top: calc(50% - 15px); left: calc(50% - 15px); width: 30px; height: 30px; }.mark-one { top: 22%; right: 17%; }.mark-two { bottom: 21%; left: 19%; }
   .track-block { top: 53%; left: 4.5vw; right: 4.5vw; }.track-heading h1 { max-width: 84vw; font-size: clamp(26px, 7vw, 36px); }.track-heading p { font-size: 13px; }.favorite { width: 26px; height: 26px; }.favorite svg { width: 21px; height: 21px; }
   .seek-block { top: 64%; left: 4.5vw; right: 4.5vw; height: 44px; }.progress-rail { height: 15px; }.elapsed-bar { height: 15px; }.remaining-ticks { height: 15px; grid-template-columns: repeat(46, 3px); }.remaining-ticks i { width: 3px; height: 15px; }.seek-block input { top: -9px; height: 34px; }.times { top: 22px; font-size: 12px; }
-  .transport { top: 75%; left: 23vw; right: 23vw; }.play-pause { width: 58px; height: 58px; }.play-pause svg { width: 24px; height: 24px; }.transport-icon { width: 32px; height: 32px; }.transport-icon svg { width: 24px; height: 24px; }
+  .transport { top: 75%; left: 23vw; right: 23vw; }.play-pause { width: 58px; height: 58px; }.play-pause svg { width: 24px; height: 24px; }.transport-icon { width: 32px; height: 32px; }.transport-icon svg { width: 24px; height: 24px; }.skip-seconds span { font-size: 7px; }.skip-seconds svg { width: 28px; height: 28px; }
   .bottom-actions { left: 4.5vw; right: 4.5vw; bottom: max(5vh, env(safe-area-inset-bottom)); }.action-icon { width: 32px; height: 32px; }.action-icon svg { width: 22px; height: 22px; }
   .library-panel { inset: env(safe-area-inset-top) 0 0; padding: 4.5vw 4.5vw calc(88px + env(safe-area-inset-bottom)); }.library-panel > header { margin-bottom: 18px; }.library-panel > header b { font-size: 20px; }.library-panel > header span { font-size: 10px; }.library-manual { gap: 6px; font-size: 10px; }.library-manual svg { width: 18px; height: 18px; }
   .album-grid { gap: 14px 10px; }.album-card > span:nth-child(2) { font-size: 8px; }.album-card > strong { font-size: 11.5px; }.album-art b { font-size: 22px; bottom: 7px; left: 8px; }

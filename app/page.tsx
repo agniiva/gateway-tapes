@@ -1,6 +1,6 @@
-import AccessWelcome from "./components/AccessWelcome";
+import { redirect } from "next/navigation";
 import ClerkAuthForm from "./components/ClerkAuthForm";
-import { clerkAuthFromServerComponent } from "./clerk-auth";
+import { clerkAuthFromServerComponent, clerkRuntimeConfiguration } from "./clerk-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -20,9 +20,10 @@ function Preview() {
 }
 
 export default async function Home() {
-  const clerkConfigured = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY);
+  const { publishableKey, secretKey } = clerkRuntimeConfiguration();
+  const clerkConfigured = Boolean(publishableKey && secretKey);
   const { userId } = await clerkAuthFromServerComponent();
-  if (userId) return <AccessWelcome />;
+  if (userId) redirect("/library");
 
   return (
     <main className="access-shell auth-shell">
@@ -32,9 +33,12 @@ export default async function Home() {
         <img className="access-mark auth-mark" src="/icons/gateway-tapes-512.png" alt="Gateway Tapes crystal ball" />
         <p className="access-kicker">PRIVATE LISTENING ARCHIVE</p>
         <h1>Gateway Tapes</h1>
-        <p className="auth-intro">{clerkConfigured ? "Enter your email. We’ll send a one-time code." : "Authentication setup is waiting for the Clerk API keys."}</p>
+        <p className="auth-intro">{clerkConfigured ? "Sign in or register with your email. We’ll send a one-time code." : "Authentication setup is waiting for the Clerk API keys."}</p>
         {clerkConfigured ? <ClerkAuthForm mode="sign-in" /> : <p className="auth-setup">Add the two Clerk keys to the local environment file to enable access.</p>}
-        <p className="access-privacy">Your email is used for access management. No password is required.</p>
+        <div className="auth-install">
+          <b>USE AS AN APP</b>
+          <p>On mobile, open your browser menu and choose <strong>Add to Home Screen</strong>.</p>
+        </div>
       </section>
     </main>
   );

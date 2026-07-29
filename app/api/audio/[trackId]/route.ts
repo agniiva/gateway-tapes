@@ -1,4 +1,4 @@
-import { ensureMediaSchema, getMediaEnv, safeTrackId } from "../../../../db/media";
+import { ensureMediaSchema, getBoundMediaBucket, getMediaEnv, safeTrackId } from "../../../../db/media";
 import { fetchExternalTrack } from "../../../../db/external-r2";
 import { clerkAuthFromRequest } from "../../../clerk-auth";
 
@@ -9,6 +9,29 @@ export async function GET(request: Request, context: { params: Promise<{ trackId
   try {
     const trackId = safeTrackId((await context.params).trackId);
     if (!trackId) return new Response("Not found", { status: 404 });
+    const boundBucket = getBoundMediaBucket();
+    if (boundBucket) {
+      const object = await boundBucket.get(`audio/${trackId}.flac`, { range: request.headers });
+      if (object?.body) {
+        const headers = new Headers({
+          "Accept-Ranges": "bytes",
+          "Content-Type": object.httpMetadata?.contentType || "audio/flac",
+          "Cache-Control": "private, no-store",
+          ETag: object.httpEtag,
+        });
+        let status = 200;
+        if (object.range && "offset" in object.range && "length" in object.range) {
+          const start = object.range.offset;
+          const end = start + object.range.length - 1;
+          headers.set("Content-Range", `bytes ${start}-${end}/${object.size}`);
+          headers.set("Content-Length", String(object.range.length));
+          status = 206;
+        } else {
+          headers.set("Content-Length", String(object.size));
+        }
+        return new Response(object.body, { status, headers });
+      }
+    }
     const external = await fetchExternalTrack(trackId, request.headers.get("Range"));
     if (external) {
       const headers = new Headers({

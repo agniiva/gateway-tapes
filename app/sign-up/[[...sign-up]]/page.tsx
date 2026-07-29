@@ -1,9 +1,11 @@
 import ClerkAuthForm from "../../components/ClerkAuthForm";
+import { clerkRuntimeConfiguration } from "../../clerk-auth";
 
 export const dynamic = "force-dynamic";
 
 export default function SignUpPage() {
-  const clerkConfigured = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY);
+  const { publishableKey, secretKey } = clerkRuntimeConfiguration();
+  const clerkConfigured = Boolean(publishableKey && secretKey);
   return (
     <main className="access-shell auth-shell">
       <div className="access-preview" aria-hidden="true">
@@ -23,7 +25,10 @@ export default function SignUpPage() {
         <h1>Gateway Tapes</h1>
         <p className="auth-intro">{clerkConfigured ? "Register with your email and verify the one-time code." : "Authentication setup is waiting for the Clerk API keys."}</p>
         {clerkConfigured ? <ClerkAuthForm mode="sign-up" /> : <p className="auth-setup">Add the two Clerk keys to the local environment file to enable access.</p>}
-        <p className="access-privacy">Your email is used for access management. No password is required.</p>
+        <div className="auth-install">
+          <b>USE AS AN APP</b>
+          <p>On mobile, open your browser menu and choose <strong>Add to Home Screen</strong>.</p>
+        </div>
       </section>
     </main>
   );

@@ -10,10 +10,10 @@ import {
   ListRestart,
   Pause,
   Play,
+  RotateCcw,
+  RotateCw,
   Share2,
   SignalHigh,
-  SkipBack,
-  SkipForward,
   Star,
   Wifi,
   X,
@@ -104,6 +104,7 @@ export default function Home() {
   const [trackId, setTrackId] = useState(ALBUMS[0].tracks[0].id);
   const [progress, setProgress] = useState(187);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
   const [autoplay, setAutoplay] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [libraryOpen, setLibraryOpen] = useState(true);
@@ -217,7 +218,7 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (!isPlaying || isSeeking) return;
+    if (!isPlaying || isSeeking || isBuffering) return;
     const rotate = (now: number) => {
       if (lastFrame.current !== null) {
         const elapsed = Math.min(now - lastFrame.current, 64);
@@ -233,7 +234,7 @@ export default function Home() {
       animationFrame.current = null;
       lastFrame.current = null;
     };
-  }, [isPlaying, isSeeking]);
+  }, [isBuffering, isPlaying, isSeeking]);
 
   const selectTrack = (nextId: string, continuePlaying = false) => {
     savedProgress.current[trackId] = progress;
@@ -276,6 +277,14 @@ export default function Home() {
       setDiscAngle(rangeSeekStart.current.rotation + fractionMoved * 1080);
     }
     if (audioRef.current && currentSrc) audioRef.current.currentTime = value;
+  };
+
+  const skipSeconds = (amount: number) => {
+    const currentTime = audioRef.current?.currentTime ?? progress;
+    const next = Math.max(0, Math.min(duration, currentTime + amount));
+    setProgress(next);
+    if (audioRef.current && currentSrc) audioRef.current.currentTime = next;
+    if ("vibrate" in navigator) navigator.vibrate(7);
   };
 
   const beginSeeking = () => {
@@ -372,10 +381,21 @@ export default function Home() {
           <audio
             ref={audioRef}
             src={currentSrc}
-            preload="metadata"
+            preload="auto"
+            onLoadStart={() => setIsBuffering(isPlaying)}
+            onWaiting={() => setIsBuffering(true)}
+            onStalled={() => setIsBuffering(true)}
             onLoadedMetadata={(event) => setMediaDuration(event.currentTarget.duration)}
             onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)}
-            onCanPlay={(event) => { if (isPlaying) void event.currentTarget.play(); }}
+            onCanPlay={(event) => {
+              setIsBuffering(false);
+              if (isPlaying) void event.currentTarget.play().catch(() => setIsPlaying(false));
+            }}
+            onPlaying={() => setIsBuffering(false)}
+            onError={() => {
+              setIsBuffering(false);
+              setIsPlaying(false);
+            }}
             onEnded={() => autoplay ? adjacentTrack(1, true) : setIsPlaying(false)}
           />
 
@@ -438,11 +458,11 @@ export default function Home() {
           </section>
 
           <nav className="transport" aria-label="Transport controls">
-            <button aria-label="Previous session" onClick={() => adjacentTrack(-1)} className="transport-icon"><SkipBack fill="currentColor" /></button>
-            <button aria-label={isPlaying ? "Pause" : "Play"} aria-pressed={isPlaying} onClick={togglePlayback} className="play-pause">
+            <button aria-label="Rewind 10 seconds" onClick={() => skipSeconds(-10)} className="transport-icon skip-seconds"><RotateCcw /><span>10</span></button>
+            <button aria-label={isBuffering ? "Buffering" : isPlaying ? "Pause" : "Play"} aria-pressed={isPlaying} onClick={togglePlayback} className="play-pause">
               {isPlaying ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}
             </button>
-            <button aria-label="Next session" onClick={() => adjacentTrack(1)} className="transport-icon"><SkipForward fill="currentColor" /></button>
+            <button aria-label="Fast-forward 10 seconds" onClick={() => skipSeconds(10)} className="transport-icon skip-seconds"><RotateCw /><span>10</span></button>
           </nav>
 
           <div className="bottom-actions">

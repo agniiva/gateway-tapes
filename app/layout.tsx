@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
+import { clerkRuntimeConfiguration } from "./clerk-auth";
 import ClerkClientProvider from "./components/ClerkClientProvider";
 import PwaRegistration from "./components/PwaRegistration";
 
@@ -45,7 +46,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  const { publishableKey } = clerkRuntimeConfiguration();
   const content = <>{children}<PwaRegistration /></>;
 
   return (

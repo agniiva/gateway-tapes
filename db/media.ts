@@ -15,6 +15,11 @@ export function getMediaEnv() {
   return bindings as MediaEnv;
 }
 
+export function getBoundMediaBucket() {
+  const bindings = env as unknown as Partial<MediaEnv>;
+  return bindings.MEDIA ?? null;
+}
+
 export function ensureMediaSchema() {
   const { DB } = getMediaEnv();
   schemaReady ??= DB.prepare(`

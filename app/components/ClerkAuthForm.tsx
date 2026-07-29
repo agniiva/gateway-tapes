@@ -9,6 +9,7 @@ const appearance = {
     colorForeground: "#353231",
     colorInputBackground: "#f5f4f7",
     colorInputForeground: "#353231",
+    colorDanger: "#7e3029",
     borderRadius: "0px",
     fontFamily: "Arial, Helvetica, sans-serif",
   },
@@ -19,7 +20,15 @@ const appearance = {
     headerTitle: "clerk-title",
     headerSubtitle: "clerk-subtitle",
     formButtonPrimary: "clerk-primary-button",
+    formButtonArrowIcon: "clerk-button-arrow",
+    formFieldLabel: "clerk-field-label",
     formFieldInput: "clerk-input",
+    formFieldErrorText: "clerk-field-error",
+    identityPreview: "clerk-identity-preview",
+    footer: "clerk-footer",
+    footerAction: "clerk-footer-action",
+    footerActionText: "clerk-footer-text",
+    developmentModeBadge: "clerk-development-badge",
     footerActionLink: "clerk-link",
     identityPreviewEditButton: "clerk-link",
   },
@@ -31,7 +40,7 @@ export default function ClerkAuthForm({ mode }: { mode: "sign-in" | "sign-up" })
       <SignUp
         routing="hash"
         signInUrl="/"
-        forceRedirectUrl="/"
+        forceRedirectUrl="/library"
         appearance={appearance}
       />
     );
@@ -42,7 +51,7 @@ export default function ClerkAuthForm({ mode }: { mode: "sign-in" | "sign-up" })
       routing="hash"
       withSignUp
       signUpUrl="/sign-up"
-      forceRedirectUrl="/"
+      forceRedirectUrl="/library"
       appearance={appearance}
     />
   );

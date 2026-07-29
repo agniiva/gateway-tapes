@@ -1,11 +1,23 @@
 import { createClerkClient } from "@clerk/backend";
+import { env } from "cloudflare:workers";
 import { headers } from "next/headers";
 
 type GatewayAuth = { userId: string | null };
+type ClerkWorkerEnv = {
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?: string;
+  CLERK_SECRET_KEY?: string;
+};
+
+export function clerkRuntimeConfiguration() {
+  const workerEnv = env as unknown as ClerkWorkerEnv;
+  return {
+    publishableKey: workerEnv.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+    secretKey: workerEnv.CLERK_SECRET_KEY || process.env.CLERK_SECRET_KEY,
+  };
+}
 
 function clerkClient() {
-  const secretKey = process.env.CLERK_SECRET_KEY;
-  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  const { secretKey, publishableKey } = clerkRuntimeConfiguration();
   if (!secretKey || !publishableKey) return null;
   return createClerkClient({ secretKey, publishableKey });
 }

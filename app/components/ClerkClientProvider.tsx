@@ -14,8 +14,8 @@ export default function ClerkClientProvider({
       publishableKey={publishableKey}
       signInUrl="/"
       signUpUrl="/sign-up"
-      signInFallbackRedirectUrl="/"
-      signUpFallbackRedirectUrl="/"
+      signInFallbackRedirectUrl="/library"
+      signUpFallbackRedirectUrl="/library"
     >
       {children}
     </ClerkProvider>

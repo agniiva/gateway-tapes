@@ -4,25 +4,28 @@ import test from "node:test";
 
 const root = new URL("../", import.meta.url);
 
-test("ships the Gateway Tapes access welcome and protected library", async () => {
-  const [home, welcome, library, player, layout] = await Promise.all([
+test("ships direct Gateway Tapes email access and protected library", async () => {
+  const [home, authForm, library, player, layout] = await Promise.all([
     readFile(new URL("app/page.tsx", root), "utf8"),
-    readFile(new URL("app/components/AccessWelcome.tsx", root), "utf8"),
+    readFile(new URL("app/components/ClerkAuthForm.tsx", root), "utf8"),
     readFile(new URL("app/library/page.tsx", root), "utf8"),
     readFile(new URL("app/components/GatewayPlayer.tsx", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
   ]);
 
-  assert.match(home, /<AccessWelcome \/>/);
-  assert.match(welcome, /Gateway Tapes/);
-  assert.match(welcome, /ENTER THE ARCHIVE/);
-  assert.match(welcome, /Add to Home Screen/);
-  assert.match(welcome, /marketingConsent/);
+  assert.match(home, /redirect\("\/library"\)/);
+  assert.match(home, /Gateway Tapes/);
+  assert.match(home, /Add to Home Screen/);
+  assert.match(authForm, /forceRedirectUrl="\/library"/);
   assert.match(library, /<GatewayPlayer \/>/);
   assert.match(player, /Gateway Tapes audio player/);
   assert.match(player, /GATEWAY TAPES/);
+  assert.match(player, /preload="auto"/);
+  assert.match(player, /onWaiting/);
+  assert.match(player, /Rewind 10 seconds/);
+  assert.match(player, /Fast-forward 10 seconds/);
   assert.match(layout, /Gateway Tapes — Listening Archive/);
-  assert.doesNotMatch(`${home}\n${welcome}\n${library}\n${player}\n${layout}`, /Gateway Tape(?!s)/i);
+  assert.doesNotMatch(`${home}\n${authForm}\n${library}\n${player}\n${layout}`, /Gateway Tape(?!s)/i);
 });
 
 test("ships installable PWA assets and Clerk-protected media", async () => {
@@ -47,7 +50,9 @@ test("ships installable PWA assets and Clerk-protected media", async () => {
   assert.match(clerkAuth, /authenticateRequest/);
   assert.match(clerkAuth, /authorizedParties/);
   assert.match(clerkAuth, /CLERK_SECRET_KEY/);
+  assert.match(clerkAuth, /cloudflare:workers/);
   assert.match(`${mediaRoute}\n${audioRoute}\n${manualRoute}`, /clerkAuthFromRequest/);
+  assert.match(audioRoute, /getBoundMediaBucket/);
   assert.doesNotMatch(accessStore, /cf-access-/);
   assert.match(migration, /CREATE TABLE `gateway_users`/);
 });
