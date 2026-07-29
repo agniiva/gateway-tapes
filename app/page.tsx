@@ -80,6 +80,15 @@ function formatTime(value: number) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
+function formatDeviceTime() {
+  return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" })
+    .formatToParts(new Date())
+    .filter((part) => part.type !== "dayPeriod")
+    .map((part) => part.value)
+    .join("")
+    .trim();
+}
+
 function findTrack(trackId: string) {
   for (const album of ALBUMS) {
     const trackIndex = album.tracks.findIndex((track) => track.id === trackId);
@@ -97,6 +106,8 @@ export default function Home() {
   const [libraryOpen, setLibraryOpen] = useState(true);
   const [openAlbumId, setOpenAlbumId] = useState(ALBUMS[0].id);
   const [shared, setShared] = useState(false);
+  const [deviceTime, setDeviceTime] = useState(formatDeviceTime);
+  const [isSeeking, setIsSeeking] = useState(false);
   const [ready, setReady] = useState(false);
   const [mediaDuration, setMediaDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -109,6 +120,13 @@ export default function Home() {
   const duration = mediaDuration || current.track.duration;
   const percentage = Math.min(100, (progress / duration) * 100);
   const favorite = favorites.includes(trackId);
+
+  useEffect(() => {
+    const updateTime = () => setDeviceTime(formatDeviceTime());
+    updateTime();
+    const clock = window.setInterval(updateTime, 15000);
+    return () => window.clearInterval(clock);
+  }, []);
 
   useEffect(() => {
     try {
@@ -184,6 +202,11 @@ export default function Home() {
     if (audioRef.current && current.track.src) audioRef.current.currentTime = value;
   };
 
+  const beginSeeking = () => {
+    setIsSeeking(true);
+    if ("vibrate" in navigator) navigator.vibrate(7);
+  };
+
   const adjacentTrack = (direction: -1 | 1, continuePlaying = false) => {
     const albumIndex = ALBUMS.findIndex((album) => album.id === current.album.id);
     let nextAlbum = current.album;
@@ -216,6 +239,7 @@ export default function Home() {
   };
 
   const recordStyle = { "--record": current.album.color } as CSSProperties;
+  const discStyle = { "--seek-rotation": `${percentage * 10.8}deg` } as CSSProperties;
 
   return (
     <main className="gateway-shell" style={recordStyle}>
@@ -232,7 +256,7 @@ export default function Home() {
           />
 
           <div className="status-bar" aria-hidden="true">
-            <span>9:41</span>
+            <span suppressHydrationWarning>{deviceTime}</span>
             <span className="status-icons"><SignalHigh /><Wifi /><BatteryMedium /></span>
           </div>
           <div className="island" aria-hidden="true"><span></span></div>
@@ -243,7 +267,7 @@ export default function Home() {
             <button className="icon-button" aria-label={shared ? "Link copied" : "Share session"} onClick={share}><Share2 /></button>
           </header>
 
-          <div className={`disc ${isPlaying ? "is-playing" : ""}`} aria-label={isPlaying ? "Disc rotating" : "Disc paused"}>
+          <div className={`disc ${isPlaying ? "is-playing" : ""} ${isSeeking ? "is-seeking" : ""}`} style={discStyle} aria-label={isSeeking ? "Disc following seek position" : isPlaying ? "Disc rotating" : "Disc paused"}>
             <span className="disc-mark mark-one"></span><span className="disc-hole"></span><span className="disc-mark mark-two"></span>
           </div>
 
@@ -259,7 +283,19 @@ export default function Home() {
               <span className="elapsed-bar" style={{ width: `${percentage}%` }}></span>
               <span className="remaining-ticks">{TICKS.map((_, index) => <i key={index}></i>)}</span>
             </div>
-            <input aria-label="Seek through session" type="range" min="0" max={duration} step="1" value={progress} onChange={(event) => seek(Number(event.target.value))} />
+            <input
+              aria-label="Seek through session"
+              type="range"
+              min="0"
+              max={duration}
+              step="1"
+              value={progress}
+              onPointerDown={(event) => { beginSeeking(); event.currentTarget.setPointerCapture(event.pointerId); }}
+              onPointerUp={() => setIsSeeking(false)}
+              onPointerCancel={() => setIsSeeking(false)}
+              onBlur={() => setIsSeeking(false)}
+              onChange={(event) => seek(Number(event.target.value))}
+            />
             <div className="times"><span>{formatTime(progress)}</span><span>−{formatTime(duration - progress)}</span></div>
           </section>
 

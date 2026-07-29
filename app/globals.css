@@ -26,12 +26,13 @@ button { color: inherit; }
 .icon-button { appearance: none; width: 18px; height: 18px; padding: 0; border: 0; background: transparent; cursor: pointer; display: grid; place-items: center; }
 .icon-button svg { width: 15px; height: 15px; stroke-width: 2.35; }
 
-.disc { position: absolute; top: 81px; left: 33px; width: 160px; height: 160px; border-radius: 50%; background: var(--record); animation: spin 3.8s linear infinite; animation-play-state: paused; }
-.disc.is-playing { animation-play-state: running; }
+.disc { position: absolute; top: 81px; left: 33px; width: 160px; height: 160px; border-radius: 50%; background: var(--record); transform: rotate(var(--seek-rotation)); transition: transform 120ms linear; }
+.disc.is-playing:not(.is-seeking) { animation: spin 3.8s linear infinite; }
+.disc.is-seeking { transform: rotate(var(--seek-rotation)) scale(.985); transition: none; }
 .disc-hole { position: absolute; top: 70px; left: 70px; width: 20px; height: 20px; border-radius: 50%; background: var(--screen); }
 .disc-mark { position: absolute; width: 12px; height: 5px; background: var(--screen); transform: rotate(-45deg); }
 .mark-one { top: 36px; right: 27px; }.mark-two { bottom: 34px; left: 30px; }
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin { from { transform: rotate(var(--seek-rotation)); } to { transform: rotate(calc(var(--seek-rotation) + 360deg)); } }
 
 .track-block { position: absolute; top: 270px; left: 13px; right: 13px; }
 .track-heading { display: flex; justify-content: space-between; align-items: flex-start; }
@@ -41,11 +42,11 @@ button { color: inherit; }
 .favorite svg { width: 15px; height: 15px; stroke-width: 2.15; }
 
 .seek-block { position: absolute; top: 326px; left: 13px; right: 13px; height: 32px; }
-.progress-rail { position: absolute; top: 0; left: 0; right: 0; height: 10px; display: flex; gap: 7px; overflow: hidden; }
-.elapsed-bar { display: block; height: 10px; flex: 0 0 auto; background: var(--ink); }
-.remaining-ticks { flex: 1; min-width: 0; height: 10px; display: flex; gap: 3px; overflow: hidden; }
-.remaining-ticks i { display: block; flex: 0 0 2px; height: 10px; background: var(--ink); }
-.seek-block input { position: absolute; top: -6px; left: 0; width: 100%; height: 21px; margin: 0; opacity: 0; cursor: ew-resize; }
+.progress-rail { position: absolute; top: 0; left: 0; right: 0; height: 10px; overflow: hidden; }
+.elapsed-bar { position: absolute; z-index: 2; inset: 0 auto 0 0; display: block; height: 10px; background: var(--ink); box-shadow: 7px 0 0 var(--screen); }
+.remaining-ticks { position: absolute; z-index: 1; inset: 0; height: 10px; display: grid; grid-template-columns: repeat(46, 2px); justify-content: space-between; overflow: hidden; }
+.remaining-ticks i { display: block; width: 2px; height: 10px; background: var(--ink); }
+.seek-block input { position: absolute; z-index: 3; top: -8px; left: 0; width: 100%; height: 25px; margin: 0; opacity: 0; cursor: ew-resize; touch-action: none; }
 .times { position: absolute; top: 15px; left: 0; right: 0; display: flex; justify-content: space-between; font-size: 7px; font-weight: 700; }
 
 .transport { position: absolute; top: 368px; left: 54px; right: 54px; display: flex; justify-content: space-between; align-items: center; }
@@ -96,11 +97,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid #cc2b20; outline-
   .phone::before, .phone::after { display: none; }.screen { border: 0; border-radius: 0; }
   .status-bar { top: max(14px, env(safe-area-inset-top)); left: 7.5vw; right: 6vw; font-size: 12px; }.status-icons { gap: 5px; }.status-icons svg { width: 15px; height: 15px; }.status-icons svg:last-child { width: 20px; }.island { top: max(8px, env(safe-area-inset-top)); width: 92px; height: 26px; }
   .player-header { top: calc(max(8px, env(safe-area-inset-top)) + 40px); left: 6vw; right: 6vw; }.album-label { font-size: 13px; }
-  .disc { top: 17%; left: 50%; width: min(58vw, 250px); height: min(58vw, 250px); transform: translateX(-50%); }.disc.is-playing { animation-name: spin-mobile; }
+  .disc { top: 17%; left: 50%; width: min(58vw, 250px); height: min(58vw, 250px); transform: translateX(-50%) rotate(var(--seek-rotation)); }.disc.is-playing:not(.is-seeking) { animation-name: spin-mobile; }.disc.is-seeking { transform: translateX(-50%) rotate(var(--seek-rotation)) scale(.985); }
   .disc-hole { top: calc(50% - 15px); left: calc(50% - 15px); width: 30px; height: 30px; }.mark-one { top: 22%; right: 17%; }.mark-two { bottom: 21%; left: 19%; }
-  @keyframes spin-mobile { to { transform: translateX(-50%) rotate(360deg); } }
+  @keyframes spin-mobile { from { transform: translateX(-50%) rotate(var(--seek-rotation)); } to { transform: translateX(-50%) rotate(calc(var(--seek-rotation) + 360deg)); } }
   .track-block { top: 56%; left: 7vw; right: 7vw; }.track-heading h1 { max-width: 80vw; font-size: clamp(24px, 6.7vw, 34px); }.track-heading p { font-size: 12px; }.favorite { width: 26px; height: 26px; }.favorite svg { width: 21px; height: 21px; }
-  .seek-block { top: 66%; left: 7vw; right: 7vw; height: 44px; }.progress-rail { height: 15px; gap: 8px; }.elapsed-bar { height: 15px; }.remaining-ticks { height: 15px; gap: 4px; }.remaining-ticks i { flex-basis: 3px; height: 15px; }.seek-block input { height: 30px; }.times { top: 22px; font-size: 11px; }
+  .seek-block { top: 66%; left: 7vw; right: 7vw; height: 44px; }.progress-rail { height: 15px; }.elapsed-bar { height: 15px; box-shadow: 8px 0 0 var(--screen); }.remaining-ticks { height: 15px; grid-template-columns: repeat(46, 3px); }.remaining-ticks i { width: 3px; height: 15px; }.seek-block input { top: -9px; height: 34px; }.times { top: 22px; font-size: 11px; }
   .transport { top: 75%; left: 23vw; right: 23vw; }.play-pause { width: 58px; height: 58px; }.play-pause svg { width: 24px; height: 24px; }.transport-icon { width: 32px; height: 32px; }.transport-icon svg { width: 24px; height: 24px; }
   .bottom-actions { left: 7vw; right: 7vw; bottom: max(5vh, env(safe-area-inset-bottom)); }.action-icon { width: 32px; height: 32px; }.action-icon svg { width: 22px; height: 22px; }
   .library-panel { inset: calc(max(8px, env(safe-area-inset-top)) + 37px) 0 0; padding: 7vw; }.library-panel > header b { font-size: 18px; }.library-panel > header span { font-size: 9px; }.library-panel > header button { width: 28px; height: 28px; }.library-panel > header button svg { width: 23px; height: 23px; }
