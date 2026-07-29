@@ -10,8 +10,6 @@ import {
   ListRestart,
   Pause,
   Play,
-  RotateCcw,
-  RotateCw,
   Share2,
   SignalHigh,
   Star,
@@ -98,6 +96,19 @@ function findTrack(trackId: string) {
     if (trackIndex >= 0) return { album, track: album.tracks[trackIndex], trackIndex };
   }
   return { album: ALBUMS[0], track: ALBUMS[0].tracks[0], trackIndex: 0 };
+}
+
+function TenSecondIcon({ direction }: { direction: "back" | "forward" }) {
+  const backwards = direction === "back";
+  return (
+    <>
+      <svg viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+        <path className="seek-ring" d={backwards ? "M4.5 25A19.5 19.5 0 1 0 17 6.9" : "M43.5 25A19.5 19.5 0 1 1 31 6.9"} />
+        <path className="seek-arrow" d={backwards ? "M1.5 9.7 18.5 1.8v15.8Z" : "M46.5 9.7 29.5 1.8v15.8Z"} />
+      </svg>
+      <span aria-hidden="true">10</span>
+    </>
+  );
 }
 
 export default function Home() {
@@ -458,11 +469,11 @@ export default function Home() {
           </section>
 
           <nav className="transport" aria-label="Transport controls">
-            <button aria-label="Rewind 10 seconds" onClick={() => skipSeconds(-10)} className="transport-icon skip-seconds"><RotateCcw /><span>10</span></button>
+            <button aria-label="Rewind 10 seconds" onClick={() => skipSeconds(-10)} className="transport-icon skip-seconds"><TenSecondIcon direction="back" /></button>
             <button aria-label={isBuffering ? "Buffering" : isPlaying ? "Pause" : "Play"} aria-pressed={isPlaying} onClick={togglePlayback} className="play-pause">
               {isPlaying ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}
             </button>
-            <button aria-label="Fast-forward 10 seconds" onClick={() => skipSeconds(10)} className="transport-icon skip-seconds"><RotateCw /><span>10</span></button>
+            <button aria-label="Fast-forward 10 seconds" onClick={() => skipSeconds(10)} className="transport-icon skip-seconds"><TenSecondIcon direction="forward" /></button>
           </nav>
 
           <div className="bottom-actions">
