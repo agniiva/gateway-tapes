@@ -24,15 +24,6 @@ export function ensureAccessSchema() {
   return schemaReady;
 }
 
-export function authenticatedEmail(request: Request) {
-  const accessEmail = request.headers.get("cf-access-authenticated-user-email");
-  const accessAssertion = request.headers.get("cf-access-jwt-assertion");
-  const workspaceEmail = request.headers.get("oai-authenticated-user-email");
-  const email = accessEmail && accessAssertion ? accessEmail : workspaceEmail;
-  const normalized = email?.trim().toLowerCase();
-  return normalized && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) ? normalized : null;
-}
-
 export async function registerGatewayUser(email: string, marketingConsent?: boolean) {
   await ensureAccessSchema();
   const DB = getAccessDb();

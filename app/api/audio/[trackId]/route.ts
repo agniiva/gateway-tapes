@@ -1,7 +1,11 @@
 import { ensureMediaSchema, getMediaEnv, safeTrackId } from "../../../../db/media";
 import { fetchExternalTrack } from "../../../../db/external-r2";
+import { clerkAuthFromRequest } from "../../../clerk-auth";
 
 export async function GET(request: Request, context: { params: Promise<{ trackId: string }> }) {
+  const { userId } = await clerkAuthFromRequest(request);
+  if (!userId) return new Response("Authentication required", { status: 401 });
+
   try {
     const trackId = safeTrackId((await context.params).trackId);
     if (!trackId) return new Response("Not found", { status: 404 });

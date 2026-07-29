@@ -1,4 +1,5 @@
 import { fetchExternalObject } from "../../../../../db/external-r2";
+import { clerkAuthFromRequest } from "../../../../clerk-auth";
 
 const PAGE_COUNTS: Record<string, number> = {
   "wave-i": 16,
@@ -10,6 +11,9 @@ const PAGE_COUNTS: Record<string, number> = {
 };
 
 export async function GET(request: Request, context: { params: Promise<{ waveId: string; page: string }> }) {
+  const { userId } = await clerkAuthFromRequest(request);
+  if (!userId) return new Response("Authentication required", { status: 401 });
+
   try {
     const { waveId, page: rawPage } = await context.params;
     const page = Number(rawPage);

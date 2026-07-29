@@ -25,11 +25,15 @@ test("ships the Gateway Tapes access welcome and protected library", async () =>
   assert.doesNotMatch(`${home}\n${welcome}\n${library}\n${player}\n${layout}`, /Gateway Tape(?!s)/i);
 });
 
-test("ships installable PWA assets and the verified-email store", async () => {
-  const [manifest, serviceWorker, accessStore, migration] = await Promise.all([
+test("ships installable PWA assets and Clerk-protected media", async () => {
+  const [manifest, serviceWorker, accessStore, clerkAuth, mediaRoute, audioRoute, manualRoute, migration] = await Promise.all([
     readFile(new URL("app/manifest.ts", root), "utf8"),
     readFile(new URL("public/sw.js", root), "utf8"),
     readFile(new URL("db/access.ts", root), "utf8"),
+    readFile(new URL("app/clerk-auth.ts", root), "utf8"),
+    readFile(new URL("app/api/media/route.ts", root), "utf8"),
+    readFile(new URL("app/api/audio/[trackId]/route.ts", root), "utf8"),
+    readFile(new URL("app/api/manual/[waveId]/route.ts", root), "utf8"),
     readFile(new URL("drizzle/0001_medical_impossible_man.sql", root), "utf8"),
     access(new URL("public/icons/gateway-tapes-192.png", root)),
     access(new URL("public/icons/gateway-tapes-512.png", root)),
@@ -40,7 +44,9 @@ test("ships installable PWA assets and the verified-email store", async () => {
   assert.match(manifest, /start_url: "\/library"/);
   assert.match(manifest, /display: "standalone"/);
   assert.match(serviceWorker, /startsWith\("\/api\/"\)/);
-  assert.match(accessStore, /cf-access-authenticated-user-email/);
-  assert.match(accessStore, /cf-access-jwt-assertion/);
+  assert.match(clerkAuth, /authenticateRequest/);
+  assert.match(clerkAuth, /CLERK_SECRET_KEY/);
+  assert.match(`${mediaRoute}\n${audioRoute}\n${manualRoute}`, /clerkAuthFromRequest/);
+  assert.doesNotMatch(accessStore, /cf-access-/);
   assert.match(migration, /CREATE TABLE `gateway_users`/);
 });

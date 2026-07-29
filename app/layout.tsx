@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
+import ClerkClientProvider from "./components/ClerkClientProvider";
 import PwaRegistration from "./components/PwaRegistration";
 
 export const viewport: Viewport = {
@@ -44,5 +45,16 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}<PwaRegistration /></body></html>;
+  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  const content = <>{children}<PwaRegistration /></>;
+
+  return (
+    <html lang="en">
+      <body>
+        {publishableKey
+          ? <ClerkClientProvider publishableKey={publishableKey}>{content}</ClerkClientProvider>
+          : content}
+      </body>
+    </html>
+  );
 }

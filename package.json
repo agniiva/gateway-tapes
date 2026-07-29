@@ -21,6 +21,8 @@
     "r2:upload:manual-pages:dry": "node --env-file=.env scripts/upload-manual-pages-r2.mjs --dry-run"
   },
   "dependencies": {
+    "@clerk/backend": "^3.13.2",
+    "@clerk/react": "^6.6.2",
     "aws4fetch": "^1.0.20",
     "drizzle-orm": "0.45.2",
     "lucide-react": "^0.575.0",

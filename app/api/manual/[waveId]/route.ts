@@ -1,8 +1,12 @@
 import { fetchExternalObject } from "../../../../db/external-r2";
+import { clerkAuthFromRequest } from "../../../clerk-auth";
 
 const WAVE_IDS = new Set(["wave-i", "wave-ii", "wave-iii", "wave-iv", "wave-v", "wave-vi"]);
 
 export async function GET(request: Request, context: { params: Promise<{ waveId: string }> }) {
+  const { userId } = await clerkAuthFromRequest(request);
+  if (!userId) return new Response("Authentication required", { status: 401 });
+
   try {
     const waveId = (await context.params).waveId.toLowerCase();
     if (!WAVE_IDS.has(waveId)) return new Response("Not found", { status: 404 });

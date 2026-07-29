@@ -1,7 +1,11 @@
+import { clerkAuthFromRequest } from "../../clerk-auth";
 import { ensureMediaSchema, getMediaEnv } from "../../../db/media";
 import { GATEWAY_TRACK_IDS, hasExternalR2 } from "../../../db/external-r2";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { userId } = await clerkAuthFromRequest(request);
+  if (!userId) return Response.json({ error: "Authentication required." }, { status: 401 });
+
   try {
     if (hasExternalR2()) {
       return Response.json({
