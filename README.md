@@ -36,7 +36,23 @@ The result is an installable web application that feels closer to a dedicated li
 - Cloudflare R2 for lossless recordings, PDF manuals, and rendered manual pages
 - Cloudflare D1 for media metadata and registered-user records
 - Clerk for email one-time-code authentication
+- PostHog for privacy-conscious product analytics
 - Lucide for the interface icon system
+
+## Analytics
+
+The optional PostHog integration identifies signed-in listeners with their stable Clerk user ID and email, then records a deliberately small set of product events: archive loads, wave and session selection, playback starts, pauses, completion, buffering and errors, seeks and ten-second skips, manual opens, favorites, sharing, and autoplay changes.
+
+Autocapture and session recording are disabled. Audio, manual contents, form fields, playback ticks, and credentials are never sent. Analytics uses browser local storage rather than cookies and remains completely inactive unless both PostHog values are configured.
+
+Create a PostHog project, then add these public client-side values to the local and hosted environments:
+
+```bash
+NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=phc_your_project_token
+NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+```
+
+Use the EU ingestion host instead if the PostHog project was created in the EU region.
 
 ## Project structure
 

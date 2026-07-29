@@ -1,6 +1,7 @@
 "use client";
 
 import { ClerkProvider } from "@clerk/react";
+import AnalyticsProvider from "./AnalyticsProvider";
 
 export default function ClerkClientProvider({
   publishableKey,
@@ -17,7 +18,7 @@ export default function ClerkClientProvider({
       signInFallbackRedirectUrl="/library"
       signUpFallbackRedirectUrl="/library"
     >
-      {children}
+      <AnalyticsProvider>{children}</AnalyticsProvider>
     </ClerkProvider>
   );
 }

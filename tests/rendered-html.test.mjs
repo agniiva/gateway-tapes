@@ -59,3 +59,25 @@ test("ships installable PWA assets and Clerk-protected media", async () => {
   assert.doesNotMatch(accessStore, /cf-access-/);
   assert.match(migration, /CREATE TABLE `gateway_users`/);
 });
+
+test("ships privacy-conscious identified product analytics", async () => {
+  const [analytics, provider, player, environment, readme] = await Promise.all([
+    readFile(new URL("app/analytics.ts", root), "utf8"),
+    readFile(new URL("app/components/AnalyticsProvider.tsx", root), "utf8"),
+    readFile(new URL("app/components/GatewayPlayer.tsx", root), "utf8"),
+    readFile(new URL(".env.example", root), "utf8"),
+    readFile(new URL("README.md", root), "utf8"),
+  ]);
+
+  assert.match(analytics, /disable_session_recording: true/);
+  assert.match(analytics, /autocapture: false/);
+  assert.match(analytics, /persistence: "localStorage"/);
+  assert.match(provider, /posthog\.identify\(user\.id/);
+  assert.match(provider, /primaryEmailAddress/);
+  assert.match(provider, /posthog\.reset\(\)/);
+  assert.match(player, /playback_started/);
+  assert.match(player, /playback_buffering/);
+  assert.match(player, /manual_opened/);
+  assert.match(environment, /NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=/);
+  assert.match(readme, /## Analytics/);
+});

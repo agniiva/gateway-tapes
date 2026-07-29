@@ -38,6 +38,7 @@ export default async function Home() {
         <div className="auth-install">
           <b>USE AS AN APP</b>
           <p>On mobile, open your browser menu and choose <strong>Add to Home Screen</strong>.</p>
+          <p className="analytics-notice">Signed-in usage is measured privately to improve the archive.</p>
         </div>
       </section>
     </main>

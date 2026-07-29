@@ -16,6 +16,7 @@ import {
   Wifi,
   X,
 } from "lucide-react";
+import { captureAnalytics, type AnalyticsProperties, type GatewayAnalyticsEvent } from "../analytics";
 import PdfReader from "./PdfReader";
 
 type Track = { id: string; title: string; duration: number; src?: string };
@@ -140,6 +141,9 @@ export default function Home() {
   const lastSavedAt = useRef(0);
   const autoplayRef = useRef(false);
   const advanceRef = useRef<() => void>(() => undefined);
+  const seekMethod = useRef<"rail" | "disc">("rail");
+  const lastPlayingCapture = useRef({ trackId: "", at: 0 });
+  const lastBufferingCapture = useRef(0);
 
   const current = useMemo(() => findTrack(trackId), [trackId]);
   const currentSrc = uploadedSources[trackId] ?? current.track.src;
@@ -148,6 +152,23 @@ export default function Home() {
   const favorite = favorites.includes(trackId);
   const openAlbum = ALBUMS.find((album) => album.id === openAlbumId) ?? ALBUMS[0];
   const manualAlbum = manualWaveId ? ALBUMS.find((album) => album.id === manualWaveId) : null;
+
+  const trackProperties = (id = trackId): AnalyticsProperties => {
+    const selection = findTrack(id);
+    return {
+      wave_id: selection.album.id,
+      wave_number: selection.album.roman,
+      wave_title: selection.album.title,
+      session_id: selection.track.id,
+      session_number: selection.trackIndex + 1,
+      session_title: selection.track.title,
+      duration_seconds: selection.track.duration,
+    };
+  };
+
+  const captureTrackEvent = (event: GatewayAnalyticsEvent, properties?: AnalyticsProperties, id = trackId) => {
+    captureAnalytics(event, { ...trackProperties(id), ...properties });
+  };
 
   useEffect(() => {
     const updateTime = () => setDeviceTime(formatDeviceTime());
@@ -168,6 +189,7 @@ export default function Home() {
       .then((response) => response.json() as Promise<{ assets?: MediaAsset[] }>)
       .then(({ assets = [] }) => {
         setUploadedSources(Object.fromEntries(assets.map((asset) => [asset.trackId, asset.url])));
+        captureAnalytics("archive_loaded", { available_sessions: assets.length, total_sessions: 36 });
       })
       .catch(() => undefined);
   }, []);
@@ -248,6 +270,7 @@ export default function Home() {
   }, [isBuffering, isPlaying, isSeeking]);
 
   const selectTrack = (nextId: string, continuePlaying = false) => {
+    captureTrackEvent("session_selected", { autoplay_requested: continuePlaying, started_from_beginning: true }, nextId);
     savedProgress.current[trackId] = progress;
     savedProgress.current[nextId] = 0;
     setIsPlaying(continuePlaying);
@@ -260,12 +283,16 @@ export default function Home() {
     setLibraryOpen(false);
     setShowMiniPlayer(true);
     setDiscAngle(0);
+    if (continuePlaying && !uploadedSources[nextId] && !findTrack(nextId).track.src) {
+      captureTrackEvent("playback_started", { position_seconds: 0, media_available: false }, nextId);
+    }
   };
 
   const togglePlayback = async () => {
     if (isPlaying) {
       audioRef.current?.pause();
       setIsPlaying(false);
+      captureTrackEvent("playback_paused", { position_seconds: Math.floor(progress) });
       return;
     }
     setShowMiniPlayer(true);
@@ -279,6 +306,7 @@ export default function Home() {
       }
     }
     setIsPlaying(true);
+    if (!currentSrc) captureTrackEvent("playback_started", { position_seconds: Math.floor(progress), media_available: false });
   };
 
   const seek = (value: number) => {
@@ -295,10 +323,16 @@ export default function Home() {
     const next = Math.max(0, Math.min(duration, currentTime + amount));
     setProgress(next);
     if (audioRef.current && currentSrc) audioRef.current.currentTime = next;
+    captureTrackEvent("playback_skipped", {
+      skip_seconds: amount,
+      from_seconds: Math.floor(currentTime),
+      to_seconds: Math.floor(next),
+    });
     if ("vibrate" in navigator) navigator.vibrate(7);
   };
 
-  const beginSeeking = () => {
+  const beginSeeking = (method: "rail" | "disc") => {
+    seekMethod.current = method;
     seekWasPlaying.current = isPlaying;
     rangeSeekStart.current = { progress, rotation: discRotation.current };
     audioRef.current?.pause();
@@ -309,6 +343,11 @@ export default function Home() {
 
   const endSeeking = () => {
     setIsSeeking(false);
+    captureTrackEvent("playback_seeked", {
+      method: seekMethod.current,
+      from_seconds: Math.floor(rangeSeekStart.current.progress),
+      to_seconds: Math.floor(progress),
+    });
     if (!seekWasPlaying.current) return;
     seekWasPlaying.current = false;
     if (currentSrc && audioRef.current) {
@@ -324,7 +363,7 @@ export default function Home() {
   const beginDiscScrub = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    beginSeeking();
+    beginSeeking("disc");
     discScrub.current = { pointerId: event.pointerId, lastAngle: pointerAngle(event) };
   };
 
@@ -374,12 +413,52 @@ export default function Home() {
       if (navigator.share) await navigator.share(data);
       else await navigator.clipboard.writeText(window.location.href);
       setShared(true);
+      captureTrackEvent("session_shared", { share_method: navigator.share ? "system" : "clipboard" });
       window.setTimeout(() => setShared(false), 1600);
     } catch { setShared(false); }
   };
 
   const toggleFavorite = () => {
+    const willBeFavorite = !favorite;
     setFavorites((items) => items.includes(trackId) ? items.filter((id) => id !== trackId) : [...items, trackId]);
+    captureTrackEvent("favorite_toggled", { favorite: willBeFavorite });
+  };
+
+  const openLibrary = () => {
+    setLibraryOpen(true);
+    captureAnalytics("library_opened", { from_session_id: trackId });
+  };
+
+  const openManual = (album: Album) => {
+    setManualWaveId(album.id);
+    captureAnalytics("manual_opened", {
+      wave_id: album.id,
+      wave_number: album.roman,
+      wave_title: album.title,
+      manual_pages: album.manualPages,
+    });
+  };
+
+  const toggleAutoplay = () => {
+    const enabled = !autoplay;
+    setAutoplay(enabled);
+    captureTrackEvent("autoplay_toggled", { enabled });
+  };
+
+  const recordPlaying = () => {
+    setIsBuffering(false);
+    const now = Date.now();
+    if (lastPlayingCapture.current.trackId === trackId && now - lastPlayingCapture.current.at < 3000) return;
+    lastPlayingCapture.current = { trackId, at: now };
+    captureTrackEvent("playback_started", { position_seconds: Math.floor(audioRef.current?.currentTime ?? progress), media_available: true });
+  };
+
+  const recordBuffering = (reason: "waiting" | "stalled") => {
+    setIsBuffering(true);
+    const now = Date.now();
+    if (now - lastBufferingCapture.current < 10000) return;
+    lastBufferingCapture.current = now;
+    captureTrackEvent("playback_buffering", { reason, position_seconds: Math.floor(audioRef.current?.currentTime ?? progress) });
   };
 
   const recordStyle = { "--record": current.album.color } as CSSProperties;
@@ -394,20 +473,25 @@ export default function Home() {
             src={currentSrc}
             preload="auto"
             onLoadStart={() => setIsBuffering(isPlaying)}
-            onWaiting={() => setIsBuffering(true)}
-            onStalled={() => setIsBuffering(true)}
+            onWaiting={() => recordBuffering("waiting")}
+            onStalled={() => recordBuffering("stalled")}
             onLoadedMetadata={(event) => setMediaDuration(event.currentTarget.duration)}
             onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)}
             onCanPlay={(event) => {
               setIsBuffering(false);
               if (isPlaying) void event.currentTarget.play().catch(() => setIsPlaying(false));
             }}
-            onPlaying={() => setIsBuffering(false)}
+            onPlaying={recordPlaying}
             onError={() => {
               setIsBuffering(false);
               setIsPlaying(false);
+              captureTrackEvent("playback_error", { position_seconds: Math.floor(progress) });
             }}
-            onEnded={() => autoplay ? adjacentTrack(1, true) : setIsPlaying(false)}
+            onEnded={() => {
+              captureTrackEvent("playback_completed", { autoplay_enabled: autoplay });
+              if (autoplay) adjacentTrack(1, true);
+              else setIsPlaying(false);
+            }}
           />
 
           <div className="status-bar" aria-hidden="true">
@@ -417,7 +501,7 @@ export default function Home() {
           <div className="island" aria-hidden="true"><span></span></div>
 
           <header className="player-header">
-            <button className="icon-button" aria-label="Open albums" onClick={() => setLibraryOpen(true)}><ArrowLeft /></button>
+            <button className="icon-button" aria-label="Open albums" onClick={openLibrary}><ArrowLeft /></button>
             <span className="album-label">Wave {current.album.roman} — {current.album.title}</span>
             <button className="icon-button" aria-label={shared ? "Link copied" : "Share session"} onClick={share}><Share2 /></button>
           </header>
@@ -459,7 +543,7 @@ export default function Home() {
               max={duration}
               step="1"
               value={progress}
-              onPointerDown={(event) => { beginSeeking(); event.currentTarget.setPointerCapture(event.pointerId); }}
+              onPointerDown={(event) => { beginSeeking("rail"); event.currentTarget.setPointerCapture(event.pointerId); }}
               onPointerUp={endSeeking}
               onPointerCancel={endSeeking}
               onBlur={() => { if (isSeeking) endSeeking(); }}
@@ -477,20 +561,23 @@ export default function Home() {
           </nav>
 
           <div className="bottom-actions">
-            <button className="action-icon" aria-label="Open library" onClick={() => setLibraryOpen(true)}><ListMusic /></button>
-            <button className="action-icon" aria-label={`Open Wave ${current.album.roman} manual`} onClick={() => setManualWaveId(current.album.id)}><BookOpenText /></button>
-            <button className={`action-icon autoplay ${autoplay ? "active" : ""}`} aria-label={autoplay ? "Turn autoplay off" : "Turn autoplay on"} aria-pressed={autoplay} onClick={() => setAutoplay((value) => !value)}><ListRestart /></button>
+            <button className="action-icon" aria-label="Open library" onClick={openLibrary}><ListMusic /></button>
+            <button className="action-icon" aria-label={`Open Wave ${current.album.roman} manual`} onClick={() => openManual(current.album)}><BookOpenText /></button>
+            <button className={`action-icon autoplay ${autoplay ? "active" : ""}`} aria-label={autoplay ? "Turn autoplay off" : "Turn autoplay on"} aria-pressed={autoplay} onClick={toggleAutoplay}><ListRestart /></button>
           </div>
 
           {libraryOpen && (
             <section className="library-panel" aria-label="Gateway Tapes library">
               <header>
                 <div><b>GATEWAY TAPES</b><span>06 WAVES · 36 SESSIONS</span></div>
-                <button className="library-manual" aria-label={`Open Wave ${openAlbum.roman} manual`} onClick={() => setManualWaveId(openAlbum.id)}><BookOpenText /><span>MANUAL {openAlbum.roman}</span></button>
+                <button className="library-manual" aria-label={`Open Wave ${openAlbum.roman} manual`} onClick={() => openManual(openAlbum)}><BookOpenText /><span>MANUAL {openAlbum.roman}</span></button>
               </header>
               <div className="album-grid">
                 {ALBUMS.map((album) => (
-                  <button key={album.id} className={`album-card ${openAlbumId === album.id ? "selected" : ""}`} onClick={() => setOpenAlbumId(album.id)}>
+                  <button key={album.id} className={`album-card ${openAlbumId === album.id ? "selected" : ""}`} onClick={() => {
+                    setOpenAlbumId(album.id);
+                    captureAnalytics("wave_selected", { wave_id: album.id, wave_number: album.roman, wave_title: album.title });
+                  }}>
                     <span className="album-art" style={{ background: album.color }}><i></i><b>{album.roman}</b></span>
                     <span>WAVE {album.roman}</span><strong>{album.title}</strong>
                   </button>
