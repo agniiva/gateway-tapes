@@ -12,7 +12,7 @@ type PdfReaderProps = {
   onClose: () => void;
 };
 
-const ZOOM_LEVELS = [1, 1.35, 1.7, 2];
+const ZOOM_LEVELS = [1.18, 1.4, 1.7, 2];
 
 export default function PdfReader({ waveId, label, pages, miniPlayerVisible, onClose }: PdfReaderProps) {
   // The first scan's left half is the blank back cover; open on the titled front cover.
@@ -39,7 +39,9 @@ export default function PdfReader({ waveId, label, pages, miniPlayerVisible, onC
       const image = imageRef.current;
       if (!stage || !image) return;
       const imageWidth = image.getBoundingClientRect().width;
-      const target = side === 0 ? image.offsetLeft : image.offsetLeft + imageWidth / 2;
+      const halfWidth = imageWidth / 2;
+      const centeredCrop = Math.max(0, (halfWidth - stage.clientWidth) / 2);
+      const target = image.offsetLeft + side * halfWidth + centeredCrop;
       stage.scrollTo({ left: Math.round(target), top: 0 });
     });
   }, [side]);
