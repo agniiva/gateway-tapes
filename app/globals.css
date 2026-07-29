@@ -26,13 +26,11 @@ button { color: inherit; }
 .icon-button { appearance: none; width: 18px; height: 18px; padding: 0; border: 0; background: transparent; cursor: pointer; display: grid; place-items: center; }
 .icon-button svg { width: 15px; height: 15px; stroke-width: 2.35; }
 
-.disc { position: absolute; top: 81px; left: 33px; width: 160px; height: 160px; border-radius: 50%; background: var(--record); transform: rotate(var(--seek-rotation)); transition: transform 120ms linear; }
-.disc.is-playing:not(.is-seeking) { animation: spin 3.8s linear infinite; }
-.disc.is-seeking { transform: rotate(var(--seek-rotation)) scale(.985); transition: none; }
+.disc { position: absolute; top: 81px; left: 33px; width: 160px; height: 160px; border-radius: 50%; background: var(--record); transform: rotate(var(--disc-angle)); touch-action: none; cursor: grab; user-select: none; }
+.disc.is-seeking { transform: rotate(var(--disc-angle)) scale(.985); cursor: grabbing; }
 .disc-hole { position: absolute; top: 70px; left: 70px; width: 20px; height: 20px; border-radius: 50%; background: var(--screen); }
 .disc-mark { position: absolute; width: 12px; height: 5px; background: var(--screen); transform: rotate(-45deg); }
 .mark-one { top: 36px; right: 27px; }.mark-two { bottom: 34px; left: 30px; }
-@keyframes spin { from { transform: rotate(var(--seek-rotation)); } to { transform: rotate(calc(var(--seek-rotation) + 360deg)); } }
 
 .track-block { position: absolute; top: 270px; left: 13px; right: 13px; }
 .track-heading { display: flex; justify-content: space-between; align-items: flex-start; }
@@ -43,7 +41,7 @@ button { color: inherit; }
 
 .seek-block { position: absolute; top: 326px; left: 13px; right: 13px; height: 32px; }
 .progress-rail { position: absolute; top: 0; left: 0; right: 0; height: 10px; overflow: hidden; }
-.elapsed-bar { position: absolute; z-index: 2; inset: 0 auto 0 0; display: block; height: 10px; background: var(--ink); box-shadow: 7px 0 0 var(--screen); }
+.elapsed-bar { position: absolute; z-index: 2; inset: 0 auto 0 0; display: block; height: 10px; background: var(--ink); }
 .remaining-ticks { position: absolute; z-index: 1; inset: 0; height: 10px; display: grid; grid-template-columns: repeat(46, 2px); justify-content: space-between; overflow: hidden; }
 .remaining-ticks i { display: block; width: 2px; height: 10px; background: var(--ink); }
 .seek-block input { position: absolute; z-index: 3; top: -8px; left: 0; width: 100%; height: 25px; margin: 0; opacity: 0; cursor: ew-resize; touch-action: none; }
@@ -62,12 +60,13 @@ button { color: inherit; }
 .action-icon svg { width: 16px; height: 16px; stroke-width: 2.15; }
 .action-icon.autoplay.active { background: var(--ink); color: var(--screen); }
 
-.library-panel { position: absolute; z-index: 20; inset: 33px 0 0; overflow-y: auto; background: var(--screen); padding: 13px; scrollbar-width: none; }
+.library-panel { position: absolute; z-index: 20; inset: 33px 0 0; overflow-y: auto; background: var(--screen); padding: 13px 13px 60px; scrollbar-width: none; }
 .library-panel::-webkit-scrollbar { display: none; }
 .library-panel > header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 13px; }
 .library-panel > header div { display: grid; gap: 3px; }.library-panel > header b { font-size: 12px; letter-spacing: -.25px; }.library-panel > header span { font-size: 6px; letter-spacing: .8px; }
 .library-panel > header button { appearance: none; width: 18px; height: 18px; border: 0; background: transparent; padding: 0; cursor: pointer; display: grid; place-items: center; }
 .library-panel > header button svg { width: 15px; height: 15px; stroke-width: 2.2; }
+.library-panel > header button.active { background: var(--ink); color: var(--screen); }
 .album-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 6px; border-bottom: 1px solid var(--ink); padding-bottom: 12px; }
 .album-card { appearance: none; border: 0; padding: 0; background: transparent; text-align: left; cursor: pointer; }
 .album-card.selected { outline: 2px solid var(--ink); outline-offset: 2px; }
@@ -76,8 +75,20 @@ button { color: inherit; }
 .album-art b { position: absolute; bottom: 4px; left: 5px; font-size: 14px; line-height: 1; }
 .album-card > span:nth-child(2) { display: block; font-size: 5px; letter-spacing: .6px; }.album-card > strong { display: block; margin-top: 1px; font-size: 7px; }
 .track-list { padding-top: 12px; }.track-list h2 { margin: 0 0 7px; font-size: 11px; letter-spacing: -.25px; }
-.track-list button { width: 100%; display: grid; grid-template-columns: 18px 1fr auto; gap: 4px; align-items: center; padding: 6px 0; border: 0; border-top: 1px solid #999a9f; background: transparent; text-align: left; cursor: pointer; }
-.track-list button.current { background: var(--ink); color: var(--screen); padding-left: 4px; padding-right: 4px; }.track-list button span { font-size: 6px; }.track-list button b { font-size: 7px; }.track-list button em { font-size: 6px; font-style: normal; font-weight: 500; }
+.track-row { display: flex; align-items: stretch; border-top: 1px solid #999a9f; }
+.track-select { width: 100%; min-width: 0; display: grid; grid-template-columns: 18px 1fr auto; gap: 4px; align-items: center; padding: 6px 0; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.track-row.current { background: var(--ink); color: var(--screen); padding-left: 4px; }.track-row.current:not(:has(.track-upload)) { padding-right: 4px; }
+.track-select span { font-size: 6px; }.track-select b { overflow: hidden; font-size: 7px; white-space: nowrap; text-overflow: ellipsis; }.track-select em { font-size: 6px; font-style: normal; font-weight: 500; letter-spacing: .25px; }
+.track-upload { flex: 0 0 43px; display: grid; place-items: center; border-left: 1px solid currentColor; font-size: 5px; letter-spacing: .35px; cursor: pointer; }
+.track-upload input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.upload-status { margin: 8px 0 0; font-size: 6px; letter-spacing: .7px; }.upload-status.error { color: #a0271e; }
+
+.now-playing { position: absolute; z-index: 30; left: 0; right: 0; bottom: 0; height: 48px; display: flex; align-items: stretch; border-top: 2px solid var(--ink); background: var(--screen); }
+.now-playing button { appearance: none; border: 0; background: transparent; cursor: pointer; }
+.now-playing-track { min-width: 0; flex: 1; display: flex; align-items: center; gap: 8px; padding: 6px 9px; text-align: left; }
+.now-playing-track > span:last-child { min-width: 0; display: grid; gap: 1px; }.now-playing-track small { font-size: 5px; letter-spacing: .7px; }.now-playing-track b { overflow: hidden; font-size: 8px; white-space: nowrap; text-overflow: ellipsis; }
+.mini-disc { position: relative; flex: 0 0 30px; width: 30px; height: 30px; border-radius: 50%; }.mini-disc i { position: absolute; left: 12px; top: 12px; width: 6px; height: 6px; border-radius: 50%; background: var(--screen); }
+.now-playing-pause { flex: 0 0 43px; display: grid; place-items: center; border-left: 1px solid var(--ink) !important; }.now-playing-pause svg { width: 15px; height: 15px; }
 
 .about-panel { position: absolute; top: 91px; left: 460px; width: 365px; }
 .about-panel p { margin: 0; }.eyebrow { margin-bottom: 16px !important; font-size: 10px; letter-spacing: 1.1px; }
@@ -97,19 +108,18 @@ button:focus-visible, input:focus-visible { outline: 2px solid #cc2b20; outline-
   .phone::before, .phone::after { display: none; }.screen { border: 0; border-radius: 0; }
   .status-bar { top: max(14px, env(safe-area-inset-top)); left: 7.5vw; right: 6vw; font-size: 12px; }.status-icons { gap: 5px; }.status-icons svg { width: 15px; height: 15px; }.status-icons svg:last-child { width: 20px; }.island { top: max(8px, env(safe-area-inset-top)); width: 92px; height: 26px; }
   .player-header { top: calc(max(8px, env(safe-area-inset-top)) + 40px); left: 6vw; right: 6vw; }.album-label { font-size: 13px; }
-  .disc { top: 17%; left: 50%; width: min(58vw, 250px); height: min(58vw, 250px); transform: translateX(-50%) rotate(var(--seek-rotation)); }.disc.is-playing:not(.is-seeking) { animation-name: spin-mobile; }.disc.is-seeking { transform: translateX(-50%) rotate(var(--seek-rotation)) scale(.985); }
+  .disc { top: 17%; left: 50%; width: min(58vw, 250px); height: min(58vw, 250px); transform: translateX(-50%) rotate(var(--disc-angle)); }.disc.is-seeking { transform: translateX(-50%) rotate(var(--disc-angle)) scale(.985); }
   .disc-hole { top: calc(50% - 15px); left: calc(50% - 15px); width: 30px; height: 30px; }.mark-one { top: 22%; right: 17%; }.mark-two { bottom: 21%; left: 19%; }
-  @keyframes spin-mobile { from { transform: translateX(-50%) rotate(var(--seek-rotation)); } to { transform: translateX(-50%) rotate(calc(var(--seek-rotation) + 360deg)); } }
   .track-block { top: 56%; left: 7vw; right: 7vw; }.track-heading h1 { max-width: 80vw; font-size: clamp(24px, 6.7vw, 34px); }.track-heading p { font-size: 12px; }.favorite { width: 26px; height: 26px; }.favorite svg { width: 21px; height: 21px; }
-  .seek-block { top: 66%; left: 7vw; right: 7vw; height: 44px; }.progress-rail { height: 15px; }.elapsed-bar { height: 15px; box-shadow: 8px 0 0 var(--screen); }.remaining-ticks { height: 15px; grid-template-columns: repeat(46, 3px); }.remaining-ticks i { width: 3px; height: 15px; }.seek-block input { top: -9px; height: 34px; }.times { top: 22px; font-size: 11px; }
+  .seek-block { top: 66%; left: 7vw; right: 7vw; height: 44px; }.progress-rail { height: 15px; }.elapsed-bar { height: 15px; }.remaining-ticks { height: 15px; grid-template-columns: repeat(46, 3px); }.remaining-ticks i { width: 3px; height: 15px; }.seek-block input { top: -9px; height: 34px; }.times { top: 22px; font-size: 11px; }
   .transport { top: 75%; left: 23vw; right: 23vw; }.play-pause { width: 58px; height: 58px; }.play-pause svg { width: 24px; height: 24px; }.transport-icon { width: 32px; height: 32px; }.transport-icon svg { width: 24px; height: 24px; }
   .bottom-actions { left: 7vw; right: 7vw; bottom: max(5vh, env(safe-area-inset-bottom)); }.action-icon { width: 32px; height: 32px; }.action-icon svg { width: 22px; height: 22px; }
-  .library-panel { inset: calc(max(8px, env(safe-area-inset-top)) + 37px) 0 0; padding: 7vw; }.library-panel > header b { font-size: 18px; }.library-panel > header span { font-size: 9px; }.library-panel > header button { width: 28px; height: 28px; }.library-panel > header button svg { width: 23px; height: 23px; }
+  .library-panel { inset: calc(max(8px, env(safe-area-inset-top)) + 37px) 0 0; padding: 7vw 7vw calc(88px + env(safe-area-inset-bottom)); }.library-panel > header b { font-size: 18px; }.library-panel > header span { font-size: 9px; }.library-panel > header button { width: 28px; height: 28px; }.library-panel > header button svg { width: 23px; height: 23px; }
   .album-grid { gap: 14px 10px; }.album-card > span:nth-child(2) { font-size: 7px; }.album-card > strong { font-size: 10px; }.album-art b { font-size: 21px; bottom: 7px; left: 8px; }
-  .track-list { padding-top: 18px; }.track-list h2 { font-size: 17px; margin-bottom: 10px; }.track-list button { grid-template-columns: 24px 1fr auto; padding: 11px 0; }.track-list button span, .track-list button em { font-size: 9px; }.track-list button b { font-size: 11px; }
+  .track-list { padding-top: 18px; }.track-list h2 { font-size: 17px; margin-bottom: 10px; }.track-select { grid-template-columns: 24px 1fr auto; padding: 11px 0; }.track-select span, .track-select em { font-size: 9px; }.track-select b { font-size: 11px; }.track-upload { flex-basis: 62px; font-size: 8px; }.upload-status { margin-top: 12px; font-size: 9px; }
+  .now-playing { height: calc(68px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); }.now-playing-track { gap: 12px; padding: 9px 7vw; }.mini-disc { flex-basis: 42px; width: 42px; height: 42px; }.mini-disc i { left: 17px; top: 17px; width: 8px; height: 8px; }.now-playing-track small { font-size: 8px; }.now-playing-track b { font-size: 12px; }.now-playing-pause { flex-basis: 66px; }.now-playing-pause svg { width: 21px; height: 21px; }
 }
 
 @media (max-height: 660px) and (max-width: 760px) {
   .disc { top: 15%; width: min(43vh, 220px); height: min(43vh, 220px); }.track-block { top: 53%; }.seek-block { top: 64%; }.transport { top: 74%; }
 }
-@media (prefers-reduced-motion: reduce) { .disc { animation-duration: 12s; } }

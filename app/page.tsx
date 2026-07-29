@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   BatteryMedium,
+  CloudUpload,
   ListMusic,
   ListRestart,
   Pause,
@@ -15,11 +16,11 @@ import {
   SkipForward,
   Star,
   Wifi,
-  X,
 } from "lucide-react";
 
 type Track = { id: string; title: string; duration: number; src?: string };
 type Album = { id: string; roman: string; title: string; color: string; tracks: Track[] };
+type MediaAsset = { trackId: string; fileName: string; size: number; updatedAt: string; url: string };
 
 const ALBUMS: Album[] = [
   {
@@ -110,13 +111,27 @@ export default function Home() {
   const [isSeeking, setIsSeeking] = useState(false);
   const [ready, setReady] = useState(false);
   const [mediaDuration, setMediaDuration] = useState(0);
+  const [uploadedSources, setUploadedSources] = useState<Record<string, string>>({});
+  const [uploadedNames, setUploadedNames] = useState<Record<string, string>>({});
+  const [uploadMode, setUploadMode] = useState(false);
+  const [uploadingTrack, setUploadingTrack] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const discRef = useRef<HTMLDivElement | null>(null);
+  const discRotation = useRef(0);
+  const animationFrame = useRef<number | null>(null);
+  const lastFrame = useRef<number | null>(null);
+  const seekWasPlaying = useRef(false);
+  const rangeSeekStart = useRef({ progress: 0, rotation: 0 });
+  const discScrub = useRef<{ pointerId: number; lastAngle: number } | null>(null);
   const savedProgress = useRef<Record<string, number>>({});
   const lastSavedAt = useRef(0);
   const autoplayRef = useRef(false);
   const advanceRef = useRef<() => void>(() => undefined);
 
   const current = useMemo(() => findTrack(trackId), [trackId]);
+  const currentSrc = uploadedSources[trackId] ?? current.track.src;
   const duration = mediaDuration || current.track.duration;
   const percentage = Math.min(100, (progress / duration) * 100);
   const favorite = favorites.includes(trackId);
@@ -126,6 +141,16 @@ export default function Home() {
     updateTime();
     const clock = window.setInterval(updateTime, 15000);
     return () => window.clearInterval(clock);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/media")
+      .then((response) => response.json() as Promise<{ assets?: MediaAsset[] }>)
+      .then(({ assets = [] }) => {
+        setUploadedSources(Object.fromEntries(assets.map((asset) => [asset.trackId, asset.url])));
+        setUploadedNames(Object.fromEntries(assets.map((asset) => [asset.trackId, asset.fileName])));
+      })
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -161,7 +186,7 @@ export default function Home() {
   }, [autoplay, favorites, isPlaying, progress, ready, trackId]);
 
   useEffect(() => {
-    if (!isPlaying || current.track.src) return;
+    if (!isPlaying || currentSrc) return;
     const clock = window.setInterval(() => {
       setProgress((value) => {
         if (value >= duration) {
@@ -173,7 +198,31 @@ export default function Home() {
       });
     }, 250);
     return () => window.clearInterval(clock);
-  }, [current.track.src, duration, isPlaying]);
+  }, [currentSrc, duration, isPlaying]);
+
+  const setDiscAngle = (angle: number) => {
+    discRotation.current = angle;
+    discRef.current?.style.setProperty("--disc-angle", `${angle}deg`);
+  };
+
+  useEffect(() => {
+    if (!isPlaying || isSeeking) return;
+    const rotate = (now: number) => {
+      if (lastFrame.current !== null) {
+        const elapsed = Math.min(now - lastFrame.current, 64);
+        setDiscAngle(discRotation.current + elapsed * (360 / 3800));
+      }
+      lastFrame.current = now;
+      animationFrame.current = window.requestAnimationFrame(rotate);
+    };
+    lastFrame.current = null;
+    animationFrame.current = window.requestAnimationFrame(rotate);
+    return () => {
+      if (animationFrame.current !== null) window.cancelAnimationFrame(animationFrame.current);
+      animationFrame.current = null;
+      lastFrame.current = null;
+    };
+  }, [isPlaying, isSeeking]);
 
   const selectTrack = (nextId: string, continuePlaying = false) => {
     savedProgress.current[trackId] = progress;
@@ -184,10 +233,11 @@ export default function Home() {
     setProgress(savedProgress.current[nextId] ?? 0);
     setOpenAlbumId(findTrack(nextId).album.id);
     setLibraryOpen(false);
+    setDiscAngle(0);
   };
 
   const togglePlayback = async () => {
-    if (current.track.src && audioRef.current) {
+    if (currentSrc && audioRef.current) {
       if (isPlaying) audioRef.current.pause();
       else {
         audioRef.current.currentTime = progress;
@@ -199,12 +249,62 @@ export default function Home() {
 
   const seek = (value: number) => {
     setProgress(value);
-    if (audioRef.current && current.track.src) audioRef.current.currentTime = value;
+    if (isSeeking) {
+      const fractionMoved = (value - rangeSeekStart.current.progress) / Math.max(duration, 1);
+      setDiscAngle(rangeSeekStart.current.rotation + fractionMoved * 1080);
+    }
+    if (audioRef.current && currentSrc) audioRef.current.currentTime = value;
   };
 
   const beginSeeking = () => {
+    seekWasPlaying.current = isPlaying;
+    rangeSeekStart.current = { progress, rotation: discRotation.current };
+    audioRef.current?.pause();
+    setIsPlaying(false);
     setIsSeeking(true);
     if ("vibrate" in navigator) navigator.vibrate(7);
+  };
+
+  const endSeeking = () => {
+    setIsSeeking(false);
+    if (!seekWasPlaying.current) return;
+    seekWasPlaying.current = false;
+    if (currentSrc && audioRef.current) {
+      void audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+    } else setIsPlaying(true);
+  };
+
+  const pointerAngle = (event: React.PointerEvent<HTMLDivElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    return Math.atan2(event.clientY - (bounds.top + bounds.height / 2), event.clientX - (bounds.left + bounds.width / 2)) * 180 / Math.PI;
+  };
+
+  const beginDiscScrub = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    beginSeeking();
+    discScrub.current = { pointerId: event.pointerId, lastAngle: pointerAngle(event) };
+  };
+
+  const moveDiscScrub = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!discScrub.current || discScrub.current.pointerId !== event.pointerId) return;
+    const angle = pointerAngle(event);
+    let delta = angle - discScrub.current.lastAngle;
+    if (delta > 180) delta -= 360;
+    if (delta < -180) delta += 360;
+    discScrub.current.lastAngle = angle;
+    setDiscAngle(discRotation.current + delta);
+    setProgress((value) => {
+      const next = Math.max(0, Math.min(duration, value + (delta / 360) * 20));
+      if (audioRef.current && currentSrc) audioRef.current.currentTime = next;
+      return next;
+    });
+  };
+
+  const endDiscScrub = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!discScrub.current || discScrub.current.pointerId !== event.pointerId) return;
+    discScrub.current = null;
+    endSeeking();
   };
 
   const adjacentTrack = (direction: -1 | 1, continuePlaying = false) => {
@@ -238,8 +338,54 @@ export default function Home() {
     setFavorites((items) => items.includes(trackId) ? items.filter((id) => id !== trackId) : [...items, trackId]);
   };
 
+  const uploadRecording = async (uploadTrackId: string, file: File) => {
+    setUploadingTrack(uploadTrackId);
+    setUploadProgress(0);
+    setUploadError("");
+    try {
+      if (!file.name.toLowerCase().endsWith(".flac")) throw new Error("Choose a FLAC file.");
+      const initiated = await fetch("/api/uploads/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trackId: uploadTrackId, fileName: file.name, contentType: file.type || "audio/flac", size: file.size }),
+      });
+      const start = await initiated.json() as { key?: string; uploadId?: string; error?: string };
+      if (!initiated.ok || !start.key || !start.uploadId) throw new Error(start.error || "Could not begin upload.");
+
+      const chunkSize = 8 * 1024 * 1024;
+      const partCount = Math.ceil(file.size / chunkSize);
+      const parts: Array<{ partNumber: number; etag: string }> = [];
+      for (let index = 0; index < partCount; index += 1) {
+        const partNumber = index + 1;
+        const response = await fetch(`/api/uploads/part?key=${encodeURIComponent(start.key)}&uploadId=${encodeURIComponent(start.uploadId)}&partNumber=${partNumber}`, {
+          method: "PUT",
+          body: file.slice(index * chunkSize, Math.min(file.size, (index + 1) * chunkSize)),
+        });
+        const part = await response.json() as { partNumber?: number; etag?: string; error?: string };
+        if (!response.ok || !part.etag || !part.partNumber) throw new Error(part.error || "Upload interrupted.");
+        parts.push({ partNumber: part.partNumber, etag: part.etag });
+        setUploadProgress(Math.round((partNumber / partCount) * 92));
+      }
+
+      const completed = await fetch("/api/uploads/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trackId: uploadTrackId, key: start.key, uploadId: start.uploadId, fileName: file.name, contentType: file.type || "audio/flac", size: file.size, parts }),
+      });
+      const result = await completed.json() as { url?: string; error?: string };
+      if (!completed.ok || !result.url) throw new Error(result.error || "Could not finish upload.");
+      setUploadedSources((items) => ({ ...items, [uploadTrackId]: `${result.url}?v=${Date.now()}` }));
+      setUploadedNames((items) => ({ ...items, [uploadTrackId]: file.name }));
+      setUploadProgress(100);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Upload failed.");
+    } finally {
+      window.setTimeout(() => setUploadingTrack(null), 500);
+    }
+  };
+
   const recordStyle = { "--record": current.album.color } as CSSProperties;
-  const discStyle = { "--seek-rotation": `${percentage * 10.8}deg` } as CSSProperties;
+  const discStyle = { "--disc-angle": "0deg" } as CSSProperties;
 
   return (
     <main className="gateway-shell" style={recordStyle}>
@@ -247,7 +393,7 @@ export default function Home() {
         <div className="screen">
           <audio
             ref={audioRef}
-            src={current.track.src}
+            src={currentSrc}
             preload="metadata"
             onLoadedMetadata={(event) => setMediaDuration(event.currentTarget.duration)}
             onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)}
@@ -267,7 +413,21 @@ export default function Home() {
             <button className="icon-button" aria-label={shared ? "Link copied" : "Share session"} onClick={share}><Share2 /></button>
           </header>
 
-          <div className={`disc ${isPlaying ? "is-playing" : ""} ${isSeeking ? "is-seeking" : ""}`} style={discStyle} aria-label={isSeeking ? "Disc following seek position" : isPlaying ? "Disc rotating" : "Disc paused"}>
+          <div
+            ref={discRef}
+            className={`disc ${isSeeking ? "is-seeking" : ""}`}
+            style={discStyle}
+            role="slider"
+            tabIndex={0}
+            aria-label="Scrub the recording by turning the disc"
+            aria-valuemin={0}
+            aria-valuemax={Math.floor(duration)}
+            aria-valuenow={Math.floor(progress)}
+            onPointerDown={beginDiscScrub}
+            onPointerMove={moveDiscScrub}
+            onPointerUp={endDiscScrub}
+            onPointerCancel={endDiscScrub}
+          >
             <span className="disc-mark mark-one"></span><span className="disc-hole"></span><span className="disc-mark mark-two"></span>
           </div>
 
@@ -291,9 +451,9 @@ export default function Home() {
               step="1"
               value={progress}
               onPointerDown={(event) => { beginSeeking(); event.currentTarget.setPointerCapture(event.pointerId); }}
-              onPointerUp={() => setIsSeeking(false)}
-              onPointerCancel={() => setIsSeeking(false)}
-              onBlur={() => setIsSeeking(false)}
+              onPointerUp={endSeeking}
+              onPointerCancel={endSeeking}
+              onBlur={() => { if (isSeeking) endSeeking(); }}
               onChange={(event) => seek(Number(event.target.value))}
             />
             <div className="times"><span>{formatTime(progress)}</span><span>−{formatTime(duration - progress)}</span></div>
@@ -314,7 +474,7 @@ export default function Home() {
 
           {libraryOpen && (
             <section className="library-panel" aria-label="Gateway Tapes library">
-              <header><div><b>GATEWAY TAPES</b><span>06 WAVES · 36 SESSIONS</span></div><button aria-label="Close library" onClick={() => setLibraryOpen(false)}><X /></button></header>
+              <header><div><b>GATEWAY TAPES</b><span>06 WAVES · 36 SESSIONS</span></div><button className={uploadMode ? "active" : ""} aria-label={uploadMode ? "Hide upload controls" : "Upload recordings"} aria-pressed={uploadMode} onClick={() => { setUploadMode((value) => !value); setUploadError(""); }}><CloudUpload /></button></header>
               <div className="album-grid">
                 {ALBUMS.map((album) => (
                   <button key={album.id} className={`album-card ${openAlbumId === album.id ? "selected" : ""}`} onClick={() => setOpenAlbumId(album.id)}>
@@ -326,11 +486,30 @@ export default function Home() {
               <div className="track-list">
                 <h2>Wave {ALBUMS.find((album) => album.id === openAlbumId)?.roman} — {ALBUMS.find((album) => album.id === openAlbumId)?.title}</h2>
                 {ALBUMS.find((album) => album.id === openAlbumId)?.tracks.map((track, index) => (
-                  <button key={track.id} className={track.id === trackId ? "current" : ""} onClick={() => selectTrack(track.id)}>
-                    <span>{String(index + 1).padStart(2, "0")}</span><b>{track.title}</b><em>{formatTime(track.duration)}</em>
-                  </button>
+                  <div key={track.id} className={`track-row ${track.id === trackId ? "current" : ""} ${uploadedNames[track.id] ? "has-audio" : ""}`}>
+                    <button className="track-select" onClick={() => selectTrack(track.id)}>
+                      <span>{String(index + 1).padStart(2, "0")}</span><b>{track.title}</b><em>{uploadedNames[track.id] ? "READY" : formatTime(track.duration)}</em>
+                    </button>
+                    {uploadMode && (
+                      <label className="track-upload" aria-label={`Upload FLAC for ${track.title}`}>
+                        {uploadingTrack === track.id ? `${uploadProgress}%` : uploadedNames[track.id] ? "REPLACE" : "UPLOAD"}
+                        <input type="file" accept=".flac,audio/flac,audio/x-flac" disabled={Boolean(uploadingTrack)} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadRecording(track.id, file); event.currentTarget.value = ""; }} />
+                      </label>
+                    )}
+                  </div>
                 ))}
+                {uploadMode && <p className={`upload-status ${uploadError ? "error" : ""}`}>{uploadError || "FLAC · STORED PRIVATELY"}</p>}
               </div>
+            </section>
+          )}
+
+          {libraryOpen && isPlaying && (
+            <section className="now-playing" aria-label="Now playing">
+              <button className="now-playing-track" onClick={() => setLibraryOpen(false)}>
+                <span className="mini-disc" style={{ background: current.album.color }}><i></i></span>
+                <span><small>NOW PLAYING</small><b>{current.track.title}</b></span>
+              </button>
+              <button className="now-playing-pause" aria-label="Pause" onClick={togglePlayback}><Pause fill="currentColor" /></button>
             </section>
           )}
         </div>
