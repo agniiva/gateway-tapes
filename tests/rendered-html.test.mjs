@@ -45,6 +45,7 @@ test("ships installable PWA assets and Clerk-protected media", async () => {
   assert.match(manifest, /display: "standalone"/);
   assert.match(serviceWorker, /startsWith\("\/api\/"\)/);
   assert.match(clerkAuth, /authenticateRequest/);
+  assert.match(clerkAuth, /authorizedParties/);
   assert.match(clerkAuth, /CLERK_SECRET_KEY/);
   assert.match(`${mediaRoute}\n${audioRoute}\n${manualRoute}`, /clerkAuthFromRequest/);
   assert.doesNotMatch(accessStore, /cf-access-/);

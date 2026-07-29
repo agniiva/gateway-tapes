@@ -15,7 +15,9 @@ export async function clerkAuthFromRequest(request: Request): Promise<GatewayAut
   if (!clerk) return { userId: null };
 
   try {
-    const requestState = await clerk.authenticateRequest(request);
+    const requestState = await clerk.authenticateRequest(request, {
+      authorizedParties: [new URL(request.url).origin],
+    });
     if (!requestState.isAuthenticated) return { userId: null };
     return { userId: requestState.toAuth().userId };
   } catch {
