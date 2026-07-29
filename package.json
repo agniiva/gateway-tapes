@@ -16,14 +16,15 @@
     "r2:upload": "node --env-file=.env scripts/upload-r2.mjs",
     "r2:upload:dry": "node --env-file=.env scripts/upload-r2.mjs --dry-run",
     "r2:upload:pdfs": "node --env-file=.env scripts/upload-pdfs-r2.mjs",
-    "r2:upload:pdfs:dry": "node --env-file=.env scripts/upload-pdfs-r2.mjs --dry-run"
+    "r2:upload:pdfs:dry": "node --env-file=.env scripts/upload-pdfs-r2.mjs --dry-run",
+    "r2:upload:manual-pages": "node --env-file=.env scripts/upload-manual-pages-r2.mjs",
+    "r2:upload:manual-pages:dry": "node --env-file=.env scripts/upload-manual-pages-r2.mjs --dry-run"
   },
   "dependencies": {
     "aws4fetch": "^1.0.20",
     "drizzle-orm": "0.45.2",
     "lucide-react": "^0.575.0",
     "next": "16.2.6",
-    "pdfjs-dist": "^6.2.108",
     "react": "19.2.6",
     "react-dom": "19.2.6"
   },

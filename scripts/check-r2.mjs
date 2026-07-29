@@ -41,6 +41,13 @@ if (missing.length) {
       console.error("Expected six PDF manuals in the manuals prefix.");
       process.exitCode = 1;
     }
+    const pageObjects = (result.Contents || []).filter((item) => item.Key?.startsWith("manual-pages/") && item.Key.endsWith(".jpg"));
+    const pageBytes = pageObjects.reduce((total, item) => total + Number(item.Size || 0), 0);
+    console.log(`Rendered manual pages: ${pageObjects.length} JPEG files, ${(pageBytes / 1024 ** 2).toFixed(2)} MiB`);
+    if (pageObjects.length !== 65) {
+      console.error("Expected 65 rendered manual pages in the manual-pages prefix.");
+      process.exitCode = 1;
+    }
   } catch (error) {
     const name = error instanceof Error ? error.name : "R2ConnectionError";
     console.error(`R2 connection failed (${name}). Check the bucket name, endpoint, and token permissions.`);

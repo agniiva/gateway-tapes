@@ -21,12 +21,12 @@ import {
 import PdfReader from "./components/PdfReader";
 
 type Track = { id: string; title: string; duration: number; src?: string };
-type Album = { id: string; roman: string; title: string; color: string; tracks: Track[] };
+type Album = { id: string; roman: string; title: string; color: string; manualPages: number; tracks: Track[] };
 type MediaAsset = { trackId: string; fileName: string; size: number; updatedAt: string; url: string };
 
 const ALBUMS: Album[] = [
   {
-    id: "wave-i", roman: "I", title: "Discovery", color: "#4b5fa2",
+    id: "wave-i", roman: "I", title: "Discovery", color: "#4b5fa2", manualPages: 16,
     tracks: [
       ["orientation", "Orientation", 2208], ["focus-10", "Introduction to Focus 10", 2250],
       ["advanced-focus-10", "Advanced Focus 10", 2142], ["release-recharge", "Release and Recharge", 2236],
@@ -34,7 +34,7 @@ const ALBUMS: Album[] = [
     ].map(([id, title, duration]) => ({ id: `wave-i-${id}`, title: String(title), duration: Number(duration) })),
   },
   {
-    id: "wave-ii", roman: "II", title: "Threshold", color: "#9e5847",
+    id: "wave-ii", roman: "II", title: "Threshold", color: "#9e5847", manualPages: 10,
     tracks: [
       ["focus-12", "Introduction to Focus 12", 2234], ["problem-solving", "Problem Solving", 2206],
       ["month-patterning", "One-Month Patterning", 2291], ["color-breathing", "Color Breathing", 2168],
@@ -42,7 +42,7 @@ const ALBUMS: Album[] = [
     ].map(([id, title, duration]) => ({ id: `wave-ii-${id}`, title: String(title), duration: Number(duration) })),
   },
   {
-    id: "wave-iii", roman: "III", title: "Freedom", color: "#788653",
+    id: "wave-iii", roman: "III", title: "Freedom", color: "#788653", manualPages: 11,
     tracks: [
       ["lift-off", "Lift Off", 2210], ["remote-viewing", "Remote Viewing", 2320],
       ["vectors", "Vectors", 2184], ["five-questions", "Five Questions", 2288],
@@ -50,7 +50,7 @@ const ALBUMS: Album[] = [
     ].map(([id, title, duration]) => ({ id: `wave-iii-${id}`, title: String(title), duration: Number(duration) })),
   },
   {
-    id: "wave-iv", roman: "IV", title: "Adventure", color: "#b08b42",
+    id: "wave-iv", roman: "IV", title: "Adventure", color: "#b08b42", manualPages: 8,
     tracks: [
       ["year-patterning", "One-Year Patterning", 2295], ["five-messages", "Five Messages", 2198],
       ["free-flow-12", "Free Flow 12", 2244], ["nvc-i", "Nonverbal Communication I", 2216],
@@ -58,7 +58,7 @@ const ALBUMS: Album[] = [
     ].map(([id, title, duration]) => ({ id: `wave-iv-${id}`, title: String(title), duration: Number(duration) })),
   },
   {
-    id: "wave-v", roman: "V", title: "Exploring", color: "#607d86",
+    id: "wave-v", roman: "V", title: "Exploring", color: "#607d86", manualPages: 9,
     tracks: [
       ["advanced-focus-12", "Advanced Focus 12", 2226], ["discovering-intuition", "Discovering Intuition", 2290],
       ["exploring-intuition", "Exploring Intuition", 2268], ["focus-15", "Introduction to Focus 15", 2315],
@@ -66,7 +66,7 @@ const ALBUMS: Album[] = [
     ].map(([id, title, duration]) => ({ id: `wave-v-${id}`, title: String(title), duration: Number(duration) })),
   },
   {
-    id: "wave-vi", roman: "VI", title: "Odyssey", color: "#6d597b",
+    id: "wave-vi", roman: "VI", title: "Odyssey", color: "#6d597b", manualPages: 11,
     tracks: [
       ["locale-one", "Sensing Locale I", 2256], ["expansion-locale-one", "Expansion in Locale I", 2310],
       ["departure", "Point of Departure", 2224], ["friends", "Nonphysical Friends", 2266],
@@ -476,6 +476,7 @@ export default function Home() {
               key={manualAlbum.id}
               waveId={manualAlbum.id}
               label={`Wave ${manualAlbum.roman} — ${manualAlbum.title}`}
+              pages={manualAlbum.manualPages}
               miniPlayerVisible={showMiniPlayer}
               onClose={() => setManualWaveId(null)}
             />
