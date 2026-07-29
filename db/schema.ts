@@ -10,3 +10,11 @@ export const mediaAssets = sqliteTable("media_assets", {
   uploadedBy: text("uploaded_by").notNull(),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const gatewayUsers = sqliteTable("gateway_users", {
+  email: text("email").primaryKey(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  lastSeenAt: text("last_seen_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  marketingConsent: integer("marketing_consent").notNull().default(0),
+  consentUpdatedAt: text("consent_updated_at"),
+});

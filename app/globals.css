@@ -7,6 +7,42 @@ body { font-family: Arial, Helvetica, sans-serif; font-weight: 600; }
 button, input { font: inherit; }
 button { color: inherit; }
 
+.access-shell { position: relative; min-height: 100svh; display: grid; place-items: center; overflow: hidden; padding: 24px; background: #d9d8e3; }
+.access-preview { position: absolute; inset: -30px; display: grid; place-items: center; filter: blur(18px); opacity: .42; transform: scale(1.08); pointer-events: none; }
+.preview-phone { position: relative; width: min(390px, 88vw); height: min(790px, 90vh); border: 12px solid #15131a; border-radius: 54px; background: #dfe1e8; }
+.preview-title { position: absolute; top: 8%; left: 10%; right: 10%; text-align: center; font-size: 19px; letter-spacing: .03em; }
+.preview-disc { position: absolute; top: 18%; left: 50%; width: 62%; aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%; background: #6541a5; }
+.preview-disc i { position: absolute; inset: 45%; border-radius: 50%; background: #dfe1e8; }
+.preview-track, .preview-subtitle, .preview-rail { position: absolute; left: 9%; display: block; background: #383438; }
+.preview-track { top: 59%; width: 56%; height: 7%; }.preview-subtitle { top: 68%; width: 38%; height: 2.5%; }.preview-rail { top: 75%; width: 82%; height: 4%; }
+.preview-play { position: absolute; top: 83%; left: 50%; width: 64px; height: 64px; transform: translateX(-50%); border-radius: 50%; background: #383438; }
+.access-shell::after { content: ""; position: absolute; inset: 0; background: rgba(232, 231, 239, .55); backdrop-filter: blur(5px); }
+.access-card { position: relative; z-index: 1; width: min(440px, 100%); border: 1px solid rgba(53, 50, 49, .3); background: rgba(232, 232, 238, .94); padding: clamp(24px, 6vw, 42px); }
+.access-mark { display: block; width: 104px; height: 104px; margin: 0 0 24px; object-fit: cover; }
+.access-kicker { margin: 0 0 8px; font-size: 11px; letter-spacing: .16em; }
+.access-card h1 { margin: 0; font-size: clamp(38px, 10vw, 54px); line-height: .93; letter-spacing: -.055em; }
+.access-intro { max-width: 34ch; margin: 16px 0 28px; font-size: 16px; line-height: 1.45; font-weight: 500; }
+.updates-choice { display: grid; grid-template-columns: 26px 1fr; gap: 12px; align-items: start; margin: 0 0 18px; cursor: pointer; }
+.updates-choice input { position: absolute; opacity: 0; pointer-events: none; }
+.choice-box { width: 26px; height: 26px; display: grid; place-items: center; border: 1.5px solid var(--ink); background: transparent; }
+.choice-box svg { width: 15px; height: 15px; stroke-width: 2; opacity: .42; }
+.updates-choice input:checked + .choice-box { background: #6541a5; color: #fff; border-color: #6541a5; }
+.updates-choice input:checked + .choice-box svg { opacity: 1; }
+.updates-choice input:focus-visible + .choice-box { outline: 3px solid rgba(101, 65, 165, .3); outline-offset: 2px; }
+.updates-choice > span:last-child { display: grid; gap: 3px; }.updates-choice b { font-size: 13px; }.updates-choice small { font-size: 11px; line-height: 1.35; font-weight: 500; color: #5e595a; }
+.access-enter { width: 100%; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 17px; border: 0; background: #353231; color: #f4f3f7; cursor: pointer; font-size: 13px; letter-spacing: .08em; }
+.access-enter:hover { background: #6541a5; }.access-enter:disabled { cursor: wait; opacity: .72; }.access-enter svg { width: 20px; height: 20px; }
+.install-note { display: grid; grid-template-columns: 18px 1fr; gap: 10px; align-items: start; margin: 22px 0 0; font-size: 11px; line-height: 1.45; font-weight: 500; }
+.install-note svg { width: 17px; height: 17px; stroke-width: 2; }
+.access-privacy { margin: 18px 0 0; padding-top: 15px; border-top: 1px solid rgba(53, 50, 49, .25); font-size: 9px; line-height: 1.45; letter-spacing: .02em; color: #676163; font-weight: 500; }
+
+@media (max-width: 560px) {
+  .access-shell { align-items: end; padding: 12px; }
+  .access-card { padding: 24px; }
+  .access-mark { width: 84px; height: 84px; margin-bottom: 18px; }
+  .access-intro { margin-bottom: 22px; font-size: 15px; }
+}
+
 .gateway-shell { position: relative; width: 900px; min-height: 680px; margin: 0 auto; overflow: hidden; background: var(--paper); }
 .phone { position: absolute; top: 97px; left: 111px; width: 239px; height: 486px; padding: 4px; border: 2px solid #667078; border-radius: 42px; background: #090a0b; }
 .phone::before, .phone::after { content: ""; position: absolute; left: -4px; width: 2px; background: #43494e; }

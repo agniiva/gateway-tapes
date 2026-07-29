@@ -1,6 +1,12 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
+import PwaRegistration from "./components/PwaRegistration";
+
+export const viewport: Viewport = {
+  themeColor: "#6541a5",
+  viewportFit: "cover",
+};
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
@@ -10,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     metadataBase: base,
-    title: "Gateway Tapes — Private Audio Library",
+    title: "Gateway Tapes — Listening Archive",
     description: "A mobile-first, stateful listening library for the six waves of the Gateway Experience.",
     openGraph: {
       title: "Gateway Tapes",
@@ -21,9 +27,22 @@ export async function generateMetadata(): Promise<Metadata> {
       title: "Gateway Tapes",
       description: "Six waves. Thirty-six sessions. One focused listening system.",
     },
+    manifest: "/manifest.webmanifest",
+    icons: {
+      icon: [
+        { url: "/icons/gateway-tapes-192.png", sizes: "192x192", type: "image/png" },
+        { url: "/icons/gateway-tapes-512.png", sizes: "512x512", type: "image/png" },
+      ],
+      apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    },
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "black-translucent",
+      title: "Gateway Tapes",
+    },
   };
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}</body></html>;
+  return <html lang="en"><body>{children}<PwaRegistration /></body></html>;
 }
