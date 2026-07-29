@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   BatteryMedium,
-  CloudUpload,
   ListMusic,
   ListRestart,
   Pause,
@@ -16,6 +15,7 @@ import {
   SkipForward,
   Star,
   Wifi,
+  X,
 } from "lucide-react";
 
 type Track = { id: string; title: string; duration: number; src?: string };
@@ -112,11 +112,7 @@ export default function Home() {
   const [ready, setReady] = useState(false);
   const [mediaDuration, setMediaDuration] = useState(0);
   const [uploadedSources, setUploadedSources] = useState<Record<string, string>>({});
-  const [uploadedNames, setUploadedNames] = useState<Record<string, string>>({});
-  const [uploadMode, setUploadMode] = useState(false);
-  const [uploadingTrack, setUploadingTrack] = useState<string | null>(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadError, setUploadError] = useState("");
+  const [showMiniPlayer, setShowMiniPlayer] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const discRef = useRef<HTMLDivElement | null>(null);
   const discRotation = useRef(0);
@@ -148,7 +144,6 @@ export default function Home() {
       .then((response) => response.json() as Promise<{ assets?: MediaAsset[] }>)
       .then(({ assets = [] }) => {
         setUploadedSources(Object.fromEntries(assets.map((asset) => [asset.trackId, asset.url])));
-        setUploadedNames(Object.fromEntries(assets.map((asset) => [asset.trackId, asset.fileName])));
       })
       .catch(() => undefined);
   }, []);
@@ -233,18 +228,27 @@ export default function Home() {
     setProgress(savedProgress.current[nextId] ?? 0);
     setOpenAlbumId(findTrack(nextId).album.id);
     setLibraryOpen(false);
+    setShowMiniPlayer(true);
     setDiscAngle(0);
   };
 
   const togglePlayback = async () => {
+    if (isPlaying) {
+      audioRef.current?.pause();
+      setIsPlaying(false);
+      return;
+    }
+    setShowMiniPlayer(true);
     if (currentSrc && audioRef.current) {
-      if (isPlaying) audioRef.current.pause();
-      else {
+      try {
         audioRef.current.currentTime = progress;
         await audioRef.current.play();
+      } catch {
+        setIsPlaying(false);
+        return;
       }
     }
-    setIsPlaying((value) => !value);
+    setIsPlaying(true);
   };
 
   const seek = (value: number) => {
@@ -338,52 +342,6 @@ export default function Home() {
     setFavorites((items) => items.includes(trackId) ? items.filter((id) => id !== trackId) : [...items, trackId]);
   };
 
-  const uploadRecording = async (uploadTrackId: string, file: File) => {
-    setUploadingTrack(uploadTrackId);
-    setUploadProgress(0);
-    setUploadError("");
-    try {
-      if (!file.name.toLowerCase().endsWith(".flac")) throw new Error("Choose a FLAC file.");
-      const initiated = await fetch("/api/uploads/initiate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trackId: uploadTrackId, fileName: file.name, contentType: file.type || "audio/flac", size: file.size }),
-      });
-      const start = await initiated.json() as { key?: string; uploadId?: string; error?: string };
-      if (!initiated.ok || !start.key || !start.uploadId) throw new Error(start.error || "Could not begin upload.");
-
-      const chunkSize = 8 * 1024 * 1024;
-      const partCount = Math.ceil(file.size / chunkSize);
-      const parts: Array<{ partNumber: number; etag: string }> = [];
-      for (let index = 0; index < partCount; index += 1) {
-        const partNumber = index + 1;
-        const response = await fetch(`/api/uploads/part?key=${encodeURIComponent(start.key)}&uploadId=${encodeURIComponent(start.uploadId)}&partNumber=${partNumber}`, {
-          method: "PUT",
-          body: file.slice(index * chunkSize, Math.min(file.size, (index + 1) * chunkSize)),
-        });
-        const part = await response.json() as { partNumber?: number; etag?: string; error?: string };
-        if (!response.ok || !part.etag || !part.partNumber) throw new Error(part.error || "Upload interrupted.");
-        parts.push({ partNumber: part.partNumber, etag: part.etag });
-        setUploadProgress(Math.round((partNumber / partCount) * 92));
-      }
-
-      const completed = await fetch("/api/uploads/complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trackId: uploadTrackId, key: start.key, uploadId: start.uploadId, fileName: file.name, contentType: file.type || "audio/flac", size: file.size, parts }),
-      });
-      const result = await completed.json() as { url?: string; error?: string };
-      if (!completed.ok || !result.url) throw new Error(result.error || "Could not finish upload.");
-      setUploadedSources((items) => ({ ...items, [uploadTrackId]: `${result.url}?v=${Date.now()}` }));
-      setUploadedNames((items) => ({ ...items, [uploadTrackId]: file.name }));
-      setUploadProgress(100);
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : "Upload failed.");
-    } finally {
-      window.setTimeout(() => setUploadingTrack(null), 500);
-    }
-  };
-
   const recordStyle = { "--record": current.album.color } as CSSProperties;
   const discStyle = { "--disc-angle": "0deg" } as CSSProperties;
 
@@ -474,7 +432,7 @@ export default function Home() {
 
           {libraryOpen && (
             <section className="library-panel" aria-label="Gateway Tapes library">
-              <header><div><b>GATEWAY TAPES</b><span>06 WAVES · 36 SESSIONS</span></div><button className={uploadMode ? "active" : ""} aria-label={uploadMode ? "Hide upload controls" : "Upload recordings"} aria-pressed={uploadMode} onClick={() => { setUploadMode((value) => !value); setUploadError(""); }}><CloudUpload /></button></header>
+              <header><div><b>GATEWAY TAPES</b><span>06 WAVES · 36 SESSIONS</span></div></header>
               <div className="album-grid">
                 {ALBUMS.map((album) => (
                   <button key={album.id} className={`album-card ${openAlbumId === album.id ? "selected" : ""}`} onClick={() => setOpenAlbumId(album.id)}>
@@ -486,30 +444,24 @@ export default function Home() {
               <div className="track-list">
                 <h2>Wave {ALBUMS.find((album) => album.id === openAlbumId)?.roman} — {ALBUMS.find((album) => album.id === openAlbumId)?.title}</h2>
                 {ALBUMS.find((album) => album.id === openAlbumId)?.tracks.map((track, index) => (
-                  <div key={track.id} className={`track-row ${track.id === trackId ? "current" : ""} ${uploadedNames[track.id] ? "has-audio" : ""}`}>
-                    <button className="track-select" onClick={() => selectTrack(track.id)}>
-                      <span>{String(index + 1).padStart(2, "0")}</span><b>{track.title}</b><em>{uploadedNames[track.id] ? "READY" : formatTime(track.duration)}</em>
+                  <div key={track.id} className={`track-row ${track.id === trackId ? "current" : ""}`}>
+                    <button className="track-select" onClick={() => selectTrack(track.id, true)}>
+                      <span>{String(index + 1).padStart(2, "0")}</span><b>{track.title}</b><em>{formatTime(track.duration)}</em>
                     </button>
-                    {uploadMode && (
-                      <label className="track-upload" aria-label={`Upload FLAC for ${track.title}`}>
-                        {uploadingTrack === track.id ? `${uploadProgress}%` : uploadedNames[track.id] ? "REPLACE" : "UPLOAD"}
-                        <input type="file" accept=".flac,audio/flac,audio/x-flac" disabled={Boolean(uploadingTrack)} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadRecording(track.id, file); event.currentTarget.value = ""; }} />
-                      </label>
-                    )}
                   </div>
                 ))}
-                {uploadMode && <p className={`upload-status ${uploadError ? "error" : ""}`}>{uploadError || "FLAC · STORED PRIVATELY"}</p>}
               </div>
             </section>
           )}
 
-          {libraryOpen && isPlaying && (
+          {libraryOpen && showMiniPlayer && (
             <section className="now-playing" aria-label="Now playing">
               <button className="now-playing-track" onClick={() => setLibraryOpen(false)}>
                 <span className="mini-disc" style={{ background: current.album.color }}><i></i></span>
-                <span><small>NOW PLAYING</small><b>{current.track.title}</b></span>
+                <span><small>{isPlaying ? "NOW PLAYING" : "PAUSED"}</small><b>{current.track.title}</b></span>
               </button>
-              <button className="now-playing-pause" aria-label="Pause" onClick={togglePlayback}><Pause fill="currentColor" /></button>
+              <button className="now-playing-toggle" aria-label={isPlaying ? "Pause" : "Resume"} onClick={togglePlayback}>{isPlaying ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}</button>
+              <button className="now-playing-close" aria-label="Dismiss player" onClick={() => { audioRef.current?.pause(); setIsPlaying(false); setShowMiniPlayer(false); }}><X /></button>
             </section>
           )}
         </div>
