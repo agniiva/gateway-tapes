@@ -123,8 +123,8 @@ button { color: inherit; }
 .transport { position: absolute; top: 366px; left: 50px; right: 50px; display: flex; justify-content: space-between; align-items: center; }
 .transport button { appearance: none; border: 0; padding: 0; background: transparent; color: var(--ink); cursor: pointer; transition: transform 90ms ease; }
 .transport button:active { transform: scale(.94); }
-.play-pause { width: 48px; height: 48px; border: 2.5px solid var(--ink) !important; border-radius: 50% !important; background: transparent !important; color: var(--ink); display: grid; place-items: center; }
-.play-pause svg { width: 19px; height: 19px; stroke-width: 2.6; }
+.play-pause { width: 40px; height: 40px; border: 0 !important; border-radius: 50% !important; background: var(--ink) !important; color: var(--screen); display: grid; place-items: center; }
+.play-pause svg { width: 17px; height: 17px; stroke-width: 2; }
 .play-pause svg[data-lucide="play"] { margin-left: 2px; }
 .transport-icon { width: 34px; height: 34px; display: grid; place-items: center; }
 .transport-icon svg { width: 33px; height: 33px; }
@@ -205,7 +205,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #cc2b20; outline-
   .disc-hole { top: calc(50% - 15px); left: calc(50% - 15px); width: 30px; height: 30px; }.mark-one { top: 22%; right: 17%; }.mark-two { bottom: 21%; left: 19%; }
   .track-block { top: 53%; left: 4.5vw; right: 4.5vw; }.track-heading h1 { max-width: 84vw; font-size: clamp(26px, 7vw, 36px); }.track-heading p { font-size: 13px; }.favorite { width: 26px; height: 26px; }.favorite svg { width: 21px; height: 21px; }
   .seek-block { top: 64%; left: 4.5vw; right: 4.5vw; height: 44px; }.progress-rail { height: 15px; }.elapsed-bar { height: 15px; }.remaining-ticks { height: 15px; grid-template-columns: repeat(46, 3px); }.remaining-ticks i { width: 3px; height: 15px; }.seek-block input { top: -9px; height: 34px; }.times { top: 22px; font-size: 12px; }
-  .transport { top: 75%; left: 19vw; right: 19vw; }.play-pause { width: 72px; height: 72px; border-width: 4px !important; }.play-pause svg { width: 29px; height: 29px; stroke-width: 2.7; }.transport-icon { width: 52px; height: 52px; }.transport-icon svg { width: 50px; height: 50px; }.skip-seconds span { inset: 4px 0 0; font-size: 14px; letter-spacing: -1px; }.skip-seconds svg { width: 50px; height: 50px; }
+  .transport { top: 75%; left: 23vw; right: 23vw; }.play-pause { width: 58px; height: 58px; }.play-pause svg { width: 24px; height: 24px; stroke-width: 2; }.transport-icon { width: 44px; height: 44px; }.transport-icon svg { width: 42px; height: 42px; }.skip-seconds span { inset: 3px 0 0; font-size: 11px; letter-spacing: -.7px; }.skip-seconds svg { width: 42px; height: 42px; }
   .bottom-actions { left: 4.5vw; right: 4.5vw; bottom: max(5vh, env(safe-area-inset-bottom)); }.action-icon { width: 32px; height: 32px; }.action-icon svg { width: 22px; height: 22px; }
   .library-panel { inset: env(safe-area-inset-top) 0 0; padding: 4.5vw 4.5vw calc(88px + env(safe-area-inset-bottom)); }.library-panel > header { margin-bottom: 18px; }.library-panel > header b { font-size: 20px; }.library-panel > header span { font-size: 10px; }.library-manual { gap: 6px; font-size: 10px; }.library-manual svg { width: 18px; height: 18px; }
   .album-grid { gap: 14px 10px; }.album-card > span:nth-child(2) { font-size: 8px; }.album-card > strong { font-size: 11.5px; }.album-art b { font-size: 22px; bottom: 7px; left: 8px; }
