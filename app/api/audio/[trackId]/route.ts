@@ -2,6 +2,10 @@ import { ensureMediaSchema, getBoundMediaBucket, getMediaEnv, safeTrackId } from
 import { fetchExternalTrack } from "../../../../db/external-r2";
 import { clerkAuthFromRequest } from "../../../clerk-auth";
 
+function setDownloadDisposition(headers: Headers, trackId: string, requested: boolean) {
+  if (requested) headers.set("Content-Disposition", `attachment; filename="${trackId}.flac"`);
+}
+
 export async function GET(request: Request, context: { params: Promise<{ trackId: string }> }) {
   const { userId } = await clerkAuthFromRequest(request);
   if (!userId) return new Response("Authentication required", { status: 401 });
@@ -9,6 +13,7 @@ export async function GET(request: Request, context: { params: Promise<{ trackId
   try {
     const trackId = safeTrackId((await context.params).trackId);
     if (!trackId) return new Response("Not found", { status: 404 });
+    const downloadRequested = new URL(request.url).searchParams.get("download") === "1";
     const boundBucket = getBoundMediaBucket();
     if (boundBucket) {
       const object = await boundBucket.get(`audio/${trackId}.flac`, { range: request.headers });
@@ -19,6 +24,7 @@ export async function GET(request: Request, context: { params: Promise<{ trackId
           "Cache-Control": "private, no-store",
           ETag: object.httpEtag,
         });
+        setDownloadDisposition(headers, trackId, downloadRequested);
         let status = 200;
         if (object.range && "offset" in object.range && "length" in object.range) {
           const start = object.range.offset;
@@ -43,6 +49,7 @@ export async function GET(request: Request, context: { params: Promise<{ trackId
         const value = external.headers.get(name);
         if (value) headers.set(name, value);
       }
+      setDownloadDisposition(headers, trackId, downloadRequested);
       return new Response(external.body, { status: external.status, headers });
     }
     await ensureMediaSchema();
@@ -61,6 +68,7 @@ export async function GET(request: Request, context: { params: Promise<{ trackId
       ETag: object.httpEtag,
     });
     object.writeHttpMetadata(headers);
+    setDownloadDisposition(headers, trackId, downloadRequested);
     let status = 200;
     if (object.range && "offset" in object.range && "length" in object.range) {
       const start = object.range.offset;

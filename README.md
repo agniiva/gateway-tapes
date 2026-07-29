@@ -23,7 +23,8 @@ The result is an installable web application that feels closer to a dedicated li
 - Starts a selected session immediately from the beginning.
 - Provides tactile disc scrubbing, a stable seek rail, and ten-second rewind/forward controls.
 - Keeps a persistent mini player when moving between the library, player, and manuals.
-- Saves playback position, favorites, autoplay preference, and the current session on the device.
+- Saves playback position, favorites, and the current session on the device.
+- Downloads the current original-quality FLAC through the authenticated media route.
 - Includes a landscape-friendly PDF manual reader with rendered-page fallbacks.
 - Supports passwordless email access through Clerk.
 - Installs as a Progressive Web App on a phone home screen.
@@ -41,7 +42,7 @@ The result is an installable web application that feels closer to a dedicated li
 
 ## Analytics
 
-The optional PostHog integration identifies signed-in listeners with their stable Clerk user ID and email, then records a deliberately small set of product events: archive loads, wave and session selection, playback starts, pauses, completion, buffering and errors, seeks and ten-second skips, manual opens, favorites, sharing, and autoplay changes.
+The optional PostHog integration identifies signed-in listeners with their stable Clerk user ID and email, then records a deliberately small set of product events: archive loads, wave and session selection, playback starts, pauses, completion, buffering and errors, seeks and ten-second skips, manual opens, favorites, sharing, and download starts.
 
 Autocapture and session recording are disabled. Audio, manual contents, form fields, playback ticks, and credentials are never sent. Analytics uses browser local storage rather than cookies and remains completely inactive unless both PostHog values are configured.
 

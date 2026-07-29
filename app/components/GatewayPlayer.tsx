@@ -6,8 +6,8 @@ import {
   ArrowLeft,
   BatteryMedium,
   BookOpenText,
+  Download,
   ListMusic,
-  ListRestart,
   Pause,
   Play,
   Share2,
@@ -117,7 +117,6 @@ export default function Home() {
   const [progress, setProgress] = useState(187);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
-  const [autoplay, setAutoplay] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [libraryOpen, setLibraryOpen] = useState(true);
   const [openAlbumId, setOpenAlbumId] = useState(ALBUMS[0].id);
@@ -139,8 +138,6 @@ export default function Home() {
   const discScrub = useRef<{ pointerId: number; lastAngle: number } | null>(null);
   const savedProgress = useRef<Record<string, number>>({});
   const lastSavedAt = useRef(0);
-  const autoplayRef = useRef(false);
-  const advanceRef = useRef<() => void>(() => undefined);
   const seekMethod = useRef<"rail" | "disc">("rail");
   const lastPlayingCapture = useRef({ trackId: "", at: 0 });
   const lastBufferingCapture = useRef(0);
@@ -199,13 +196,12 @@ export default function Home() {
       try {
         const raw = window.localStorage.getItem(STORAGE_KEY);
         if (raw) {
-          const state = JSON.parse(raw) as { trackId?: string; progress?: Record<string, number>; autoplay?: boolean; favorites?: string[] };
+          const state = JSON.parse(raw) as { trackId?: string; progress?: Record<string, number>; favorites?: string[] };
           const fallbackId = ALBUMS[0].tracks[0].id;
           const restoredId = state.trackId && findTrack(state.trackId).track.id === state.trackId ? state.trackId : fallbackId;
           savedProgress.current = state.progress ?? {};
           setTrackId(restoredId);
           setProgress(savedProgress.current[restoredId] ?? 0);
-          if (typeof state.autoplay === "boolean") setAutoplay(state.autoplay);
           if (Array.isArray(state.favorites)) setFavorites(state.favorites);
         }
       } catch {
@@ -225,18 +221,16 @@ export default function Home() {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
       trackId,
       progress: savedProgress.current,
-      autoplay,
       favorites,
     }));
-  }, [autoplay, favorites, isPlaying, progress, ready, trackId]);
+  }, [favorites, isPlaying, progress, ready, trackId]);
 
   useEffect(() => {
     if (!isPlaying || currentSrc) return;
     const clock = window.setInterval(() => {
       setProgress((value) => {
         if (value >= duration) {
-          if (autoplayRef.current) window.setTimeout(() => advanceRef.current(), 0);
-          else setIsPlaying(false);
+          setIsPlaying(false);
           return duration;
         }
         return Math.min(duration, value + 0.25);
@@ -270,7 +264,7 @@ export default function Home() {
   }, [isBuffering, isPlaying, isSeeking]);
 
   const selectTrack = (nextId: string, continuePlaying = false) => {
-    captureTrackEvent("session_selected", { autoplay_requested: continuePlaying, started_from_beginning: true }, nextId);
+    captureTrackEvent("session_selected", { playback_requested: continuePlaying, started_from_beginning: true }, nextId);
     savedProgress.current[trackId] = progress;
     savedProgress.current[nextId] = 0;
     setIsPlaying(continuePlaying);
@@ -388,25 +382,6 @@ export default function Home() {
     endSeeking();
   };
 
-  const adjacentTrack = (direction: -1 | 1, continuePlaying = false) => {
-    const albumIndex = ALBUMS.findIndex((album) => album.id === current.album.id);
-    let nextAlbum = current.album;
-    let nextIndex = current.trackIndex + direction;
-    if (nextIndex < 0) {
-      nextAlbum = ALBUMS[(albumIndex - 1 + ALBUMS.length) % ALBUMS.length];
-      nextIndex = nextAlbum.tracks.length - 1;
-    } else if (nextIndex >= current.album.tracks.length) {
-      nextAlbum = ALBUMS[(albumIndex + 1) % ALBUMS.length];
-      nextIndex = 0;
-    }
-    selectTrack(nextAlbum.tracks[nextIndex].id, continuePlaying);
-  };
-
-  useEffect(() => {
-    autoplayRef.current = autoplay;
-    advanceRef.current = () => adjacentTrack(1, true);
-  });
-
   const share = async () => {
     try {
       const data = { title: `${current.track.title} — Gateway Tapes`, url: window.location.href };
@@ -439,10 +414,11 @@ export default function Home() {
     });
   };
 
-  const toggleAutoplay = () => {
-    const enabled = !autoplay;
-    setAutoplay(enabled);
-    captureTrackEvent("autoplay_toggled", { enabled });
+  const recordDownload = () => {
+    captureTrackEvent("recording_download_started", {
+      file_type: "flac",
+      source: "player_action",
+    });
   };
 
   const recordPlaying = () => {
@@ -488,9 +464,8 @@ export default function Home() {
               captureTrackEvent("playback_error", { position_seconds: Math.floor(progress) });
             }}
             onEnded={() => {
-              captureTrackEvent("playback_completed", { autoplay_enabled: autoplay });
-              if (autoplay) adjacentTrack(1, true);
-              else setIsPlaying(false);
+              captureTrackEvent("playback_completed");
+              setIsPlaying(false);
             }}
           />
 
@@ -563,7 +538,13 @@ export default function Home() {
           <div className="bottom-actions">
             <button className="action-icon" aria-label="Open library" onClick={openLibrary}><ListMusic /></button>
             <button className="action-icon" aria-label={`Open Wave ${current.album.roman} manual`} onClick={() => openManual(current.album)}><BookOpenText /></button>
-            <button className={`action-icon autoplay ${autoplay ? "active" : ""}`} aria-label={autoplay ? "Turn autoplay off" : "Turn autoplay on"} aria-pressed={autoplay} onClick={toggleAutoplay}><ListRestart /></button>
+            <a
+              className="action-icon"
+              aria-label={`Download ${current.track.title} as FLAC`}
+              href={`/api/audio/${trackId}?download=1`}
+              download={`${trackId}.flac`}
+              onClick={recordDownload}
+            ><Download /></a>
           </div>
 
           {libraryOpen && (

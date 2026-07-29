@@ -25,6 +25,8 @@ test("ships direct Gateway Tapes email access and protected library", async () =
   assert.match(player, /onWaiting/);
   assert.match(player, /Rewind 10 seconds/);
   assert.match(player, /Fast-forward 10 seconds/);
+  assert.match(player, /Download .* as FLAC/);
+  assert.match(player, /\?download=1/);
   assert.match(styles, /\.transport \.play-pause \{ color: var\(--screen\); \}/);
   assert.match(styles, /\.transport-icon \{ width: 38px; height: 38px; \}/);
   assert.match(layout, /Gateway Tapes — Listening Archive/);
@@ -56,6 +58,8 @@ test("ships installable PWA assets and Clerk-protected media", async () => {
   assert.match(clerkAuth, /cloudflare:workers/);
   assert.match(`${mediaRoute}\n${audioRoute}\n${manualRoute}`, /clerkAuthFromRequest/);
   assert.match(audioRoute, /getBoundMediaBucket/);
+  assert.match(audioRoute, /Content-Disposition/);
+  assert.match(audioRoute, /attachment; filename=/);
   assert.doesNotMatch(accessStore, /cf-access-/);
   assert.match(migration, /CREATE TABLE `gateway_users`/);
 });
@@ -78,6 +82,7 @@ test("ships privacy-conscious identified product analytics", async () => {
   assert.match(player, /playback_started/);
   assert.match(player, /playback_buffering/);
   assert.match(player, /manual_opened/);
+  assert.match(player, /recording_download_started/);
   assert.match(environment, /NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=/);
   assert.match(readme, /## Analytics/);
 });

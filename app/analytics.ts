@@ -16,7 +16,7 @@ export type GatewayAnalyticsEvent =
   | "session_selected"
   | "session_shared"
   | "favorite_toggled"
-  | "autoplay_toggled"
+  | "recording_download_started"
   | "wave_selected";
 
 export type AnalyticsProperties = Record<string, string | number | boolean | null | undefined>;

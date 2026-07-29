@@ -137,9 +137,8 @@ button { color: inherit; }
 .skip-seconds .seek-arrow { fill: currentColor; stroke: none; }
 
 .bottom-actions { position: absolute; left: 13px; right: 13px; bottom: 28px; display: flex; justify-content: space-between; align-items: center; }
-.action-icon { appearance: none; width: 22px; height: 22px; padding: 0; border: 0; background: transparent; cursor: pointer; display: grid; place-items: center; }
+.action-icon { appearance: none; width: 22px; height: 22px; padding: 0; border: 0; background: transparent; color: inherit; text-decoration: none; cursor: pointer; display: grid; place-items: center; }
 .action-icon svg { width: 16px; height: 16px; stroke-width: 2.15; }
-.action-icon.autoplay.active { background: var(--ink); color: var(--screen); }
 
 .library-panel { position: absolute; z-index: 20; inset: 33px 0 0; overflow-y: auto; background: var(--screen); padding: 13px 13px 60px; scrollbar-width: none; }
 .library-panel::-webkit-scrollbar { display: none; }
