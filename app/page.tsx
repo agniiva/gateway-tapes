@@ -446,7 +446,10 @@ export default function Home() {
 
           {libraryOpen && (
             <section className="library-panel" aria-label="Gateway Tapes library">
-              <header><div><b>GATEWAY TAPES</b><span>06 WAVES · 36 SESSIONS</span></div></header>
+              <header>
+                <div><b>GATEWAY TAPES</b><span>06 WAVES · 36 SESSIONS</span></div>
+                <button className="library-manual" aria-label={`Open Wave ${openAlbum.roman} manual`} onClick={() => setManualWaveId(openAlbum.id)}><BookOpenText /><span>MANUAL {openAlbum.roman}</span></button>
+              </header>
               <div className="album-grid">
                 {ALBUMS.map((album) => (
                   <button key={album.id} className={`album-card ${openAlbumId === album.id ? "selected" : ""}`} onClick={() => setOpenAlbumId(album.id)}>
@@ -456,10 +459,7 @@ export default function Home() {
                 ))}
               </div>
               <div className="track-list">
-                <div className="track-list-heading">
-                  <h2>Wave {openAlbum.roman} — {openAlbum.title}</h2>
-                  <button aria-label={`Open Wave ${openAlbum.roman} manual`} onClick={() => setManualWaveId(openAlbum.id)}><BookOpenText /><span>MANUAL</span></button>
-                </div>
+                <h2>Wave {openAlbum.roman} — {openAlbum.title}</h2>
                 {openAlbum.tracks.map((track, index) => (
                   <div key={track.id} className={`track-row ${track.id === trackId ? "current" : ""}`}>
                     <button className="track-select" onClick={() => selectTrack(track.id, true)}>
