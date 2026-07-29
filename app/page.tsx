@@ -221,11 +221,13 @@ export default function Home() {
 
   const selectTrack = (nextId: string, continuePlaying = false) => {
     savedProgress.current[trackId] = progress;
+    savedProgress.current[nextId] = 0;
     setIsPlaying(continuePlaying);
     audioRef.current?.pause();
+    if (audioRef.current) audioRef.current.currentTime = 0;
     setTrackId(nextId);
     setMediaDuration(0);
-    setProgress(savedProgress.current[nextId] ?? 0);
+    setProgress(0);
     setOpenAlbumId(findTrack(nextId).album.id);
     setLibraryOpen(false);
     setShowMiniPlayer(true);
