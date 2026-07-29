@@ -2,6 +2,21 @@
 
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowLeft,
+  BatteryMedium,
+  ListMusic,
+  ListRestart,
+  Pause,
+  Play,
+  Share2,
+  SignalHigh,
+  SkipBack,
+  SkipForward,
+  Star,
+  Wifi,
+  X,
+} from "lucide-react";
 
 type Track = { id: string; title: string; duration: number; src?: string };
 type Album = { id: string; roman: string; title: string; color: string; tracks: Track[] };
@@ -77,17 +92,18 @@ export default function Home() {
   const [trackId, setTrackId] = useState(ALBUMS[0].tracks[0].id);
   const [progress, setProgress] = useState(187);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(0.7);
+  const [autoplay, setAutoplay] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
-  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(true);
   const [openAlbumId, setOpenAlbumId] = useState(ALBUMS[0].id);
-  const [showVolume, setShowVolume] = useState(false);
   const [shared, setShared] = useState(false);
   const [ready, setReady] = useState(false);
   const [mediaDuration, setMediaDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const savedProgress = useRef<Record<string, number>>({});
   const lastSavedAt = useRef(0);
+  const autoplayRef = useRef(false);
+  const advanceRef = useRef<() => void>(() => undefined);
 
   const current = useMemo(() => findTrack(trackId), [trackId]);
   const duration = mediaDuration || current.track.duration;
@@ -98,12 +114,12 @@ export default function Home() {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const state = JSON.parse(raw) as { trackId?: string; progress?: Record<string, number>; volume?: number; favorites?: string[] };
+        const state = JSON.parse(raw) as { trackId?: string; progress?: Record<string, number>; autoplay?: boolean; favorites?: string[] };
         const restoredId = state.trackId && findTrack(state.trackId).track.id === state.trackId ? state.trackId : trackId;
         savedProgress.current = state.progress ?? {};
         setTrackId(restoredId);
         setProgress(savedProgress.current[restoredId] ?? 0);
-        if (typeof state.volume === "number") setVolume(state.volume);
+        if (typeof state.autoplay === "boolean") setAutoplay(state.autoplay);
         if (Array.isArray(state.favorites)) setFavorites(state.favorites);
       }
     } catch {
@@ -121,17 +137,18 @@ export default function Home() {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
       trackId,
       progress: savedProgress.current,
-      volume,
+      autoplay,
       favorites,
     }));
-  }, [favorites, isPlaying, progress, ready, trackId, volume]);
+  }, [autoplay, favorites, isPlaying, progress, ready, trackId]);
 
   useEffect(() => {
     if (!isPlaying || current.track.src) return;
     const clock = window.setInterval(() => {
       setProgress((value) => {
         if (value >= duration) {
-          setIsPlaying(false);
+          if (autoplayRef.current) window.setTimeout(() => advanceRef.current(), 0);
+          else setIsPlaying(false);
           return duration;
         }
         return Math.min(duration, value + 0.25);
@@ -140,13 +157,9 @@ export default function Home() {
     return () => window.clearInterval(clock);
   }, [current.track.src, duration, isPlaying]);
 
-  useEffect(() => {
-    if (audioRef.current) audioRef.current.volume = volume;
-  }, [volume]);
-
-  const selectTrack = (nextId: string) => {
+  const selectTrack = (nextId: string, continuePlaying = false) => {
     savedProgress.current[trackId] = progress;
-    setIsPlaying(false);
+    setIsPlaying(continuePlaying);
     audioRef.current?.pause();
     setTrackId(nextId);
     setMediaDuration(0);
@@ -171,7 +184,7 @@ export default function Home() {
     if (audioRef.current && current.track.src) audioRef.current.currentTime = value;
   };
 
-  const adjacentTrack = (direction: -1 | 1) => {
+  const adjacentTrack = (direction: -1 | 1, continuePlaying = false) => {
     const albumIndex = ALBUMS.findIndex((album) => album.id === current.album.id);
     let nextAlbum = current.album;
     let nextIndex = current.trackIndex + direction;
@@ -182,8 +195,11 @@ export default function Home() {
       nextAlbum = ALBUMS[(albumIndex + 1) % ALBUMS.length];
       nextIndex = 0;
     }
-    selectTrack(nextAlbum.tracks[nextIndex].id);
+    selectTrack(nextAlbum.tracks[nextIndex].id, continuePlaying);
   };
+
+  autoplayRef.current = autoplay;
+  advanceRef.current = () => adjacentTrack(1, true);
 
   const share = async () => {
     try {
@@ -211,18 +227,20 @@ export default function Home() {
             preload="metadata"
             onLoadedMetadata={(event) => setMediaDuration(event.currentTarget.duration)}
             onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)}
-            onEnded={() => adjacentTrack(1)}
+            onCanPlay={(event) => { if (isPlaying) void event.currentTarget.play(); }}
+            onEnded={() => autoplay ? adjacentTrack(1, true) : setIsPlaying(false)}
           />
 
           <div className="status-bar" aria-hidden="true">
-            <span>9:41</span><span className="status-icons"><i></i><i></i><b></b></span>
+            <span>9:41</span>
+            <span className="status-icons"><SignalHigh /><Wifi /><BatteryMedium /></span>
           </div>
           <div className="island" aria-hidden="true"><span></span></div>
 
           <header className="player-header">
-            <button className="icon-button back" aria-label="Open albums" onClick={() => setLibraryOpen(true)}><span></span></button>
+            <button className="icon-button" aria-label="Open albums" onClick={() => setLibraryOpen(true)}><ArrowLeft /></button>
             <span className="album-label">Wave {current.album.roman} — {current.album.title}</span>
-            <button className="icon-button share" aria-label={shared ? "Link copied" : "Share session"} onClick={share}><span></span><span></span><span></span></button>
+            <button className="icon-button" aria-label={shared ? "Link copied" : "Share session"} onClick={share}><Share2 /></button>
           </header>
 
           <div className={`disc ${isPlaying ? "is-playing" : ""}`} aria-label={isPlaying ? "Disc rotating" : "Disc paused"}>
@@ -232,9 +250,8 @@ export default function Home() {
           <section className="track-block">
             <div className="track-heading">
               <div><h1>{current.track.title}</h1><p>The Gateway Experience</p></div>
-              <button className={`favorite ${favorite ? "active" : ""}`} aria-label={favorite ? "Remove favorite" : "Add favorite"} aria-pressed={favorite} onClick={toggleFavorite}><span>★</span></button>
+              <button className={`favorite ${favorite ? "active" : ""}`} aria-label={favorite ? "Remove favorite" : "Add favorite"} aria-pressed={favorite} onClick={toggleFavorite}><Star fill={favorite ? "currentColor" : "none"} /></button>
             </div>
-            <p className="credits">Wave {current.album.roman} · {current.album.title}<br />Private archive · FLAC-ready · state saved on this device</p>
           </section>
 
           <section className="seek-block" aria-label="Playback position">
@@ -247,29 +264,21 @@ export default function Home() {
           </section>
 
           <nav className="transport" aria-label="Transport controls">
-            <button aria-label="Previous session" onClick={() => adjacentTrack(-1)} className="skip previous"><i></i><i></i><b></b></button>
+            <button aria-label="Previous session" onClick={() => adjacentTrack(-1)} className="transport-icon"><SkipBack fill="currentColor" /></button>
             <button aria-label={isPlaying ? "Pause" : "Play"} aria-pressed={isPlaying} onClick={togglePlayback} className="play-pause">
-              {isPlaying ? <span className="pause-symbol"><i></i><i></i></span> : <span className="play-symbol"></span>}
+              {isPlaying ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}
             </button>
-            <button aria-label="Next session" onClick={() => adjacentTrack(1)} className="skip next"><i></i><i></i><b></b></button>
+            <button aria-label="Next session" onClick={() => adjacentTrack(1)} className="transport-icon"><SkipForward fill="currentColor" /></button>
           </nav>
 
           <div className="bottom-actions">
-            <button className={`queue-button ${libraryOpen ? "active" : ""}`} aria-label="Open library" onClick={() => setLibraryOpen(true)}><i></i><i></i><i></i><b></b><b></b><b></b></button>
-            <button className="volume-button" aria-label="Toggle volume" aria-expanded={showVolume} onClick={() => setShowVolume((value) => !value)}><i></i><b></b><em></em></button>
+            <button className="action-icon" aria-label="Open library" onClick={() => setLibraryOpen(true)}><ListMusic /></button>
+            <button className={`action-icon autoplay ${autoplay ? "active" : ""}`} aria-label={autoplay ? "Turn autoplay off" : "Turn autoplay on"} aria-pressed={autoplay} onClick={() => setAutoplay((value) => !value)}><ListRestart /></button>
           </div>
-
-          {showVolume && !libraryOpen && (
-            <div className="volume-panel">
-              <label htmlFor="volume">VOL</label>
-              <input id="volume" aria-label="Volume" type="range" min="0" max="1" step="0.01" value={volume} onChange={(event) => setVolume(Number(event.target.value))} />
-              <span>{Math.round(volume * 100)}</span>
-            </div>
-          )}
 
           {libraryOpen && (
             <section className="library-panel" aria-label="Gateway Tapes library">
-              <header><div><b>GATEWAY TAPES</b><span>06 WAVES · 36 SESSIONS</span></div><button aria-label="Close library" onClick={() => setLibraryOpen(false)}>×</button></header>
+              <header><div><b>GATEWAY TAPES</b><span>06 WAVES · 36 SESSIONS</span></div><button aria-label="Close library" onClick={() => setLibraryOpen(false)}><X /></button></header>
               <div className="album-grid">
                 {ALBUMS.map((album) => (
                   <button key={album.id} className={`album-card ${openAlbumId === album.id ? "selected" : ""}`} onClick={() => setOpenAlbumId(album.id)}>
@@ -286,14 +295,13 @@ export default function Home() {
                   </button>
                 ))}
               </div>
-              <p className="library-note">Cover art and FLAC files can replace these placeholders without changing the player.</p>
             </section>
           )}
         </div>
       </section>
 
       <aside className="about-panel">
-        <p className="eyebrow">HOBBY PROJECT / PRIVATE AUDIO LIBRARY</p>
+        <p className="eyebrow">PRIVATE LISTENING LIBRARY</p>
         <h2>Gateway Tapes</h2>
         <p className="lead">A mobile-first home for six waves of the Gateway Experience—thirty-six sessions, one focused listening system.</p>
 
@@ -302,12 +310,6 @@ export default function Home() {
           <p>Hemi-Sync is an audio-guidance method associated with the Monroe Institute. It uses layered sound and spoken exercises to support focused, relaxed states of awareness.</p>
         </div>
 
-        <div className="about-section">
-          <h3>Built for continuity</h3>
-          <p>The selected session, listening position, volume and favorites stay saved on this device, so every visit resumes where the last one ended.</p>
-        </div>
-
-        <div className="project-counts"><span>06 ALBUMS</span><span>36 SESSIONS</span><span>FLAC READY</span></div>
         <p className="disclaimer">Personal, non-commercial archive. Not affiliated with or endorsed by the Monroe Institute.</p>
       </aside>
     </main>
