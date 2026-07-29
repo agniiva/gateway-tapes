@@ -35,7 +35,7 @@ export function hasExternalR2() {
   return Boolean(configuration());
 }
 
-export async function fetchExternalTrack(trackId: string, range?: string | null) {
+export async function fetchExternalObject(key: string, range?: string | null) {
   const config = configuration();
   if (!config) return null;
   const client = new AwsClient({
@@ -46,5 +46,9 @@ export async function fetchExternalTrack(trackId: string, range?: string | null)
   });
   const headers = new Headers();
   if (range) headers.set("Range", range);
-  return client.fetch(`${config.endpoint}/${config.bucket}/audio/${trackId}.flac`, { headers });
+  return client.fetch(`${config.endpoint}/${config.bucket}/${key}`, { headers });
+}
+
+export function fetchExternalTrack(trackId: string, range?: string | null) {
+  return fetchExternalObject(`audio/${trackId}.flac`, range);
 }

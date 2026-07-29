@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   BatteryMedium,
+  BookOpenText,
   ListMusic,
   ListRestart,
   Pause,
@@ -17,6 +18,7 @@ import {
   Wifi,
   X,
 } from "lucide-react";
+import PdfReader from "./components/PdfReader";
 
 type Track = { id: string; title: string; duration: number; src?: string };
 type Album = { id: string; roman: string; title: string; color: string; tracks: Track[] };
@@ -113,6 +115,7 @@ export default function Home() {
   const [mediaDuration, setMediaDuration] = useState(0);
   const [uploadedSources, setUploadedSources] = useState<Record<string, string>>({});
   const [showMiniPlayer, setShowMiniPlayer] = useState(false);
+  const [manualWaveId, setManualWaveId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const discRef = useRef<HTMLDivElement | null>(null);
   const discRotation = useRef(0);
@@ -131,6 +134,8 @@ export default function Home() {
   const duration = mediaDuration || current.track.duration;
   const percentage = Math.min(100, (progress / duration) * 100);
   const favorite = favorites.includes(trackId);
+  const openAlbum = ALBUMS.find((album) => album.id === openAlbumId) ?? ALBUMS[0];
+  const manualAlbum = manualWaveId ? ALBUMS.find((album) => album.id === manualWaveId) : null;
 
   useEffect(() => {
     const updateTime = () => setDeviceTime(formatDeviceTime());
@@ -149,21 +154,25 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const state = JSON.parse(raw) as { trackId?: string; progress?: Record<string, number>; autoplay?: boolean; favorites?: string[] };
-        const restoredId = state.trackId && findTrack(state.trackId).track.id === state.trackId ? state.trackId : trackId;
-        savedProgress.current = state.progress ?? {};
-        setTrackId(restoredId);
-        setProgress(savedProgress.current[restoredId] ?? 0);
-        if (typeof state.autoplay === "boolean") setAutoplay(state.autoplay);
-        if (Array.isArray(state.favorites)) setFavorites(state.favorites);
+    const restore = window.setTimeout(() => {
+      try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const state = JSON.parse(raw) as { trackId?: string; progress?: Record<string, number>; autoplay?: boolean; favorites?: string[] };
+          const fallbackId = ALBUMS[0].tracks[0].id;
+          const restoredId = state.trackId && findTrack(state.trackId).track.id === state.trackId ? state.trackId : fallbackId;
+          savedProgress.current = state.progress ?? {};
+          setTrackId(restoredId);
+          setProgress(savedProgress.current[restoredId] ?? 0);
+          if (typeof state.autoplay === "boolean") setAutoplay(state.autoplay);
+          if (Array.isArray(state.favorites)) setFavorites(state.favorites);
+        }
+      } catch {
+        savedProgress.current = {};
       }
-    } catch {
-      savedProgress.current = {};
-    }
-    setReady(true);
+      setReady(true);
+    }, 0);
+    return () => window.clearTimeout(restore);
   }, []);
 
   useEffect(() => {
@@ -327,8 +336,10 @@ export default function Home() {
     selectTrack(nextAlbum.tracks[nextIndex].id, continuePlaying);
   };
 
-  autoplayRef.current = autoplay;
-  advanceRef.current = () => adjacentTrack(1, true);
+  useEffect(() => {
+    autoplayRef.current = autoplay;
+    advanceRef.current = () => adjacentTrack(1, true);
+  });
 
   const share = async () => {
     try {
@@ -429,6 +440,7 @@ export default function Home() {
 
           <div className="bottom-actions">
             <button className="action-icon" aria-label="Open library" onClick={() => setLibraryOpen(true)}><ListMusic /></button>
+            <button className="action-icon" aria-label={`Open Wave ${current.album.roman} manual`} onClick={() => setManualWaveId(current.album.id)}><BookOpenText /></button>
             <button className={`action-icon autoplay ${autoplay ? "active" : ""}`} aria-label={autoplay ? "Turn autoplay off" : "Turn autoplay on"} aria-pressed={autoplay} onClick={() => setAutoplay((value) => !value)}><ListRestart /></button>
           </div>
 
@@ -444,8 +456,11 @@ export default function Home() {
                 ))}
               </div>
               <div className="track-list">
-                <h2>Wave {ALBUMS.find((album) => album.id === openAlbumId)?.roman} — {ALBUMS.find((album) => album.id === openAlbumId)?.title}</h2>
-                {ALBUMS.find((album) => album.id === openAlbumId)?.tracks.map((track, index) => (
+                <div className="track-list-heading">
+                  <h2>Wave {openAlbum.roman} — {openAlbum.title}</h2>
+                  <button aria-label={`Open Wave ${openAlbum.roman} manual`} onClick={() => setManualWaveId(openAlbum.id)}><BookOpenText /><span>MANUAL</span></button>
+                </div>
+                {openAlbum.tracks.map((track, index) => (
                   <div key={track.id} className={`track-row ${track.id === trackId ? "current" : ""}`}>
                     <button className="track-select" onClick={() => selectTrack(track.id, true)}>
                       <span>{String(index + 1).padStart(2, "0")}</span><b>{track.title}</b><em>{formatTime(track.duration)}</em>
@@ -456,9 +471,19 @@ export default function Home() {
             </section>
           )}
 
-          {libraryOpen && showMiniPlayer && (
+          {manualAlbum && (
+            <PdfReader
+              key={manualAlbum.id}
+              waveId={manualAlbum.id}
+              label={`Wave ${manualAlbum.roman} — ${manualAlbum.title}`}
+              miniPlayerVisible={showMiniPlayer}
+              onClose={() => setManualWaveId(null)}
+            />
+          )}
+
+          {(libraryOpen || manualAlbum) && showMiniPlayer && (
             <section className="now-playing" aria-label="Now playing">
-              <button className="now-playing-track" onClick={() => setLibraryOpen(false)}>
+              <button className="now-playing-track" onClick={() => { setLibraryOpen(false); setManualWaveId(null); }}>
                 <span className="mini-disc" style={{ background: current.album.color }}><i></i></span>
                 <span><small>{isPlaying ? "NOW PLAYING" : "PAUSED"}</small><b>{current.track.title}</b></span>
               </button>

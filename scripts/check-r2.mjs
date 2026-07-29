@@ -24,7 +24,6 @@ if (missing.length) {
   try {
     const result = await client.send(new ListObjectsV2Command({
       Bucket: process.env.R2_BUCKET_NAME,
-      Prefix: "audio/",
       MaxKeys: 1000,
     }));
     console.log(`R2 connection verified for bucket: ${process.env.R2_BUCKET_NAME}`);
@@ -33,6 +32,13 @@ if (missing.length) {
     console.log(`Audio inventory: ${flacObjects.length} FLAC files, ${(storedBytes / 1024 ** 3).toFixed(2)} GiB`);
     if (flacObjects.length !== 36) {
       console.error("Expected 36 FLAC sessions in the audio prefix.");
+      process.exitCode = 1;
+    }
+    const pdfObjects = (result.Contents || []).filter((item) => item.Key?.startsWith("manuals/") && item.Key.endsWith(".pdf"));
+    const manualBytes = pdfObjects.reduce((total, item) => total + Number(item.Size || 0), 0);
+    console.log(`Manual inventory: ${pdfObjects.length} PDF files, ${(manualBytes / 1024 ** 2).toFixed(2)} MiB`);
+    if (pdfObjects.length !== 6) {
+      console.error("Expected six PDF manuals in the manuals prefix.");
       process.exitCode = 1;
     }
   } catch (error) {
