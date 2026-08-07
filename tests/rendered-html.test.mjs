@@ -23,6 +23,9 @@ test("ships direct Gateway Tapes email access and protected library", async () =
   assert.match(player, /GATEWAY TAPES/);
   assert.match(player, /preload="auto"/);
   assert.match(player, /onWaiting/);
+  assert.match(player, /MAX_RECOVERY_ATTEMPTS/);
+  assert.match(player, /playback_recovery_attempted/);
+  assert.match(player, /stream_attempt=/);
   assert.match(player, /Rewind 10 seconds/);
   assert.match(player, /Fast-forward 10 seconds/);
   assert.match(player, /Download .* as FLAC/);
@@ -60,6 +63,8 @@ test("ships installable PWA assets and Clerk-protected media", async () => {
   assert.match(audioRoute, /getBoundMediaBucket/);
   assert.match(audioRoute, /Content-Disposition/);
   assert.match(audioRoute, /attachment; filename=/);
+  assert.match(audioRoute, /STREAM_CHUNK_BYTES = 8 \* 1024 \* 1024/);
+  assert.match(audioRoute, /boundedStreamRange/);
   assert.doesNotMatch(accessStore, /cf-access-/);
   assert.match(migration, /CREATE TABLE `gateway_users`/);
 });
@@ -81,6 +86,7 @@ test("ships privacy-conscious identified product analytics", async () => {
   assert.match(provider, /posthog\.reset\(\)/);
   assert.match(player, /playback_started/);
   assert.match(player, /playback_buffering/);
+  assert.match(player, /playback_recovery_succeeded/);
   assert.match(player, /manual_opened/);
   assert.match(player, /recording_download_started/);
   assert.match(environment, /NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=/);

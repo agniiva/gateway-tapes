@@ -20,6 +20,7 @@ The result is an installable web application that feels closer to a dedicated li
 
 - Organizes six waves and 36 listening sessions in a compact mobile library.
 - Streams original lossless FLAC files from Cloudflare R2 with HTTP range support.
+- Uses bounded stream segments and automatically reconnects at the same position after a stalled mobile connection.
 - Starts a selected session immediately from the beginning.
 - Provides tactile disc scrubbing, a stable seek rail, and ten-second rewind/forward controls.
 - Keeps a persistent mini player when moving between the library, player, and manuals.
@@ -42,7 +43,7 @@ The result is an installable web application that feels closer to a dedicated li
 
 ## Analytics
 
-The optional PostHog integration identifies signed-in listeners with their stable Clerk user ID and email, then records a deliberately small set of product events: archive loads, wave and session selection, playback starts, pauses, completion, buffering and errors, seeks and ten-second skips, manual opens, favorites, sharing, and download starts.
+The optional PostHog integration identifies signed-in listeners with their stable Clerk user ID and email, then records a deliberately small set of product events: archive loads, wave and session selection, playback starts, pauses, completion, buffering, recovery attempts and errors, seeks and ten-second skips, manual opens, favorites, sharing, and download starts.
 
 Autocapture and session recording are disabled. Audio, manual contents, form fields, playback ticks, and credentials are never sent. Analytics uses browser local storage rather than cookies and remains completely inactive unless both PostHog values are configured.
 
@@ -84,6 +85,8 @@ Add your own credentials to `.env`. Environment files are ignored by Git and mus
 ```bash
 npm test
 npm run r2:check
+npm run r2:verify-audio
+npm run r2:verify-audio:decode
 npm run build
 ```
 

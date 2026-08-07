@@ -76,6 +76,12 @@ const ALBUMS: Album[] = [
 
 const STORAGE_KEY = "gateway-tapes-player-state-v1";
 const TICKS = Array.from({ length: 46 });
+const MAX_RECOVERY_ATTEMPTS = 5;
+const STALL_RECOVERY_DELAY_MS = 4000;
+
+function playbackClock() {
+  return performance.now();
+}
 
 function formatTime(value: number) {
   const seconds = Math.max(0, Math.floor(value));
@@ -128,6 +134,7 @@ export default function Home() {
   const [uploadedSources, setUploadedSources] = useState<Record<string, string>>({});
   const [showMiniPlayer, setShowMiniPlayer] = useState(false);
   const [manualWaveId, setManualWaveId] = useState<string | null>(null);
+  const [streamAttempt, setStreamAttempt] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const discRef = useRef<HTMLDivElement | null>(null);
   const discRotation = useRef(0);
@@ -141,9 +148,23 @@ export default function Home() {
   const seekMethod = useRef<"rail" | "disc">("rail");
   const lastPlayingCapture = useRef({ trackId: "", at: 0 });
   const lastBufferingCapture = useRef(0);
+  const shouldBePlaying = useRef(false);
+  const seekingRef = useRef(false);
+  const suppressPauseRecovery = useRef(false);
+  const progressRef = useRef(progress);
+  const lastProgressAt = useRef(0);
+  const recoveryTimer = useRef<number | null>(null);
+  const recoveryPosition = useRef<number | null>(null);
+  const recoveryReason = useRef<string | null>(null);
+  const recoveryAttempts = useRef(0);
+  const scheduleRecoveryRef = useRef<(reason: string) => void>(() => undefined);
 
   const current = useMemo(() => findTrack(trackId), [trackId]);
   const currentSrc = uploadedSources[trackId] ?? current.track.src;
+  const playbackSrc = useMemo(() => {
+    if (!currentSrc || streamAttempt === 0) return currentSrc;
+    return `${currentSrc}${currentSrc.includes("?") ? "&" : "?"}stream_attempt=${streamAttempt}`;
+  }, [currentSrc, streamAttempt]);
   const duration = mediaDuration || current.track.duration;
   const percentage = Math.min(100, (progress / duration) * 100);
   const favorite = favorites.includes(trackId);
@@ -167,12 +188,102 @@ export default function Home() {
     captureAnalytics(event, { ...trackProperties(id), ...properties });
   };
 
+  const clearRecoveryTimer = () => {
+    if (recoveryTimer.current !== null) window.clearTimeout(recoveryTimer.current);
+    recoveryTimer.current = null;
+  };
+
+  const resetRecovery = () => {
+    clearRecoveryTimer();
+    recoveryPosition.current = null;
+    recoveryReason.current = null;
+    recoveryAttempts.current = 0;
+  };
+
+  const pauseIntentionally = () => {
+    const audio = audioRef.current;
+    if (!audio || audio.paused) {
+      suppressPauseRecovery.current = false;
+      return;
+    }
+    suppressPauseRecovery.current = true;
+    audio.pause();
+    window.setTimeout(() => { suppressPauseRecovery.current = false; }, 0);
+  };
+
+  const schedulePlaybackRecovery = (reason: string) => {
+    if (!shouldBePlaying.current || seekingRef.current || !currentSrc || recoveryTimer.current !== null) return;
+    if (recoveryAttempts.current >= MAX_RECOVERY_ATTEMPTS) {
+      shouldBePlaying.current = false;
+      setIsPlaying(false);
+      setIsBuffering(false);
+      captureTrackEvent("playback_recovery_failed", {
+        reason,
+        attempts: recoveryAttempts.current,
+        position_seconds: Math.floor(progressRef.current),
+      });
+      return;
+    }
+
+    setIsBuffering(true);
+    const delay = Math.min(STALL_RECOVERY_DELAY_MS * 2 ** recoveryAttempts.current, 12000);
+    recoveryTimer.current = window.setTimeout(() => {
+      recoveryTimer.current = null;
+      if (!shouldBePlaying.current || seekingRef.current) return;
+      const position = audioRef.current?.currentTime || progressRef.current;
+      recoveryPosition.current = position;
+      recoveryReason.current = reason;
+      recoveryAttempts.current += 1;
+      captureTrackEvent("playback_recovery_attempted", {
+        reason,
+        attempt: recoveryAttempts.current,
+        position_seconds: Math.floor(position),
+      });
+      setStreamAttempt((value) => value + 1);
+    }, delay);
+  };
+  useEffect(() => {
+    scheduleRecoveryRef.current = schedulePlaybackRecovery;
+  });
+
   useEffect(() => {
     const updateTime = () => setDeviceTime(formatDeviceTime());
     updateTime();
     const clock = window.setInterval(updateTime, 15000);
     return () => window.clearInterval(clock);
   }, []);
+
+  useEffect(() => {
+    progressRef.current = progress;
+  }, [progress]);
+
+  useEffect(() => {
+    clearRecoveryTimer();
+    recoveryPosition.current = null;
+    recoveryReason.current = null;
+    recoveryAttempts.current = 0;
+    lastProgressAt.current = playbackClock();
+    return clearRecoveryTimer;
+  }, [trackId]);
+
+  useEffect(() => {
+    if (!currentSrc) return;
+    const checkPlayback = () => {
+      const audio = audioRef.current;
+      if (!audio || !shouldBePlaying.current || seekingRef.current || audio.ended) return;
+      if (audio.paused) scheduleRecoveryRef.current("unexpected_pause");
+      else if (playbackClock() - lastProgressAt.current > 12000) scheduleRecoveryRef.current("watchdog_timeout");
+    };
+    const resumeWhenVisible = () => {
+      if (document.visibilityState === "visible") checkPlayback();
+    };
+    const watchdog = window.setInterval(checkPlayback, 5000);
+    document.addEventListener("visibilitychange", resumeWhenVisible);
+    return () => {
+      window.clearInterval(watchdog);
+      document.removeEventListener("visibilitychange", resumeWhenVisible);
+    };
+  }, [currentSrc, trackId]);
 
   useEffect(() => {
     fetch("/api/access/register", {
@@ -265,11 +376,15 @@ export default function Home() {
 
   const selectTrack = (nextId: string, continuePlaying = false) => {
     captureTrackEvent("session_selected", { playback_requested: continuePlaying, started_from_beginning: true }, nextId);
+    resetRecovery();
+    shouldBePlaying.current = continuePlaying;
+    seekingRef.current = false;
     savedProgress.current[trackId] = progress;
     savedProgress.current[nextId] = 0;
     setIsPlaying(continuePlaying);
-    audioRef.current?.pause();
+    pauseIntentionally();
     if (audioRef.current) audioRef.current.currentTime = 0;
+    setStreamAttempt(0);
     setTrackId(nextId);
     setMediaDuration(0);
     setProgress(0);
@@ -284,22 +399,28 @@ export default function Home() {
 
   const togglePlayback = async () => {
     if (isPlaying) {
-      audioRef.current?.pause();
+      shouldBePlaying.current = false;
+      resetRecovery();
+      pauseIntentionally();
       setIsPlaying(false);
       captureTrackEvent("playback_paused", { position_seconds: Math.floor(progress) });
       return;
     }
     setShowMiniPlayer(true);
+    shouldBePlaying.current = true;
+    setIsPlaying(true);
+    lastProgressAt.current = playbackClock();
     if (currentSrc && audioRef.current) {
       try {
         audioRef.current.currentTime = progress;
         await audioRef.current.play();
       } catch {
+        shouldBePlaying.current = false;
         setIsPlaying(false);
+        captureTrackEvent("playback_error", { reason: "play_rejected", position_seconds: Math.floor(progress) });
         return;
       }
     }
-    setIsPlaying(true);
     if (!currentSrc) captureTrackEvent("playback_started", { position_seconds: Math.floor(progress), media_available: false });
   };
 
@@ -328,14 +449,17 @@ export default function Home() {
   const beginSeeking = (method: "rail" | "disc") => {
     seekMethod.current = method;
     seekWasPlaying.current = isPlaying;
+    seekingRef.current = true;
+    clearRecoveryTimer();
     rangeSeekStart.current = { progress, rotation: discRotation.current };
-    audioRef.current?.pause();
+    pauseIntentionally();
     setIsPlaying(false);
     setIsSeeking(true);
     if ("vibrate" in navigator) navigator.vibrate(7);
   };
 
   const endSeeking = () => {
+    seekingRef.current = false;
     setIsSeeking(false);
     captureTrackEvent("playback_seeked", {
       method: seekMethod.current,
@@ -344,9 +468,12 @@ export default function Home() {
     });
     if (!seekWasPlaying.current) return;
     seekWasPlaying.current = false;
+    shouldBePlaying.current = true;
+    setIsPlaying(true);
+    lastProgressAt.current = playbackClock();
     if (currentSrc && audioRef.current) {
-      void audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
-    } else setIsPlaying(true);
+      void audioRef.current.play().catch(() => schedulePlaybackRecovery("seek_resume_failed"));
+    }
   };
 
   const pointerAngle = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -422,7 +549,23 @@ export default function Home() {
   };
 
   const recordPlaying = () => {
+    const recoveredAttempts = recoveryAttempts.current;
+    const recoveredReason = recoveryReason.current;
+    clearRecoveryTimer();
+    recoveryPosition.current = null;
+    recoveryReason.current = null;
+    recoveryAttempts.current = 0;
+    shouldBePlaying.current = true;
+    lastProgressAt.current = playbackClock();
     setIsBuffering(false);
+    setIsPlaying(true);
+    if (recoveredAttempts > 0) {
+      captureTrackEvent("playback_recovery_succeeded", {
+        reason: recoveredReason,
+        attempts: recoveredAttempts,
+        position_seconds: Math.floor(audioRef.current?.currentTime ?? progressRef.current),
+      });
+    }
     const now = Date.now();
     if (lastPlayingCapture.current.trackId === trackId && now - lastPlayingCapture.current.at < 3000) return;
     lastPlayingCapture.current = { trackId, at: now };
@@ -431,10 +574,21 @@ export default function Home() {
 
   const recordBuffering = (reason: "waiting" | "stalled") => {
     setIsBuffering(true);
+    schedulePlaybackRecovery(reason);
     const now = Date.now();
     if (now - lastBufferingCapture.current < 10000) return;
     lastBufferingCapture.current = now;
     captureTrackEvent("playback_buffering", { reason, position_seconds: Math.floor(audioRef.current?.currentTime ?? progress) });
+  };
+
+  const recordUnexpectedPause = () => {
+    if (suppressPauseRecovery.current) {
+      suppressPauseRecovery.current = false;
+      return;
+    }
+    if (shouldBePlaying.current && !seekingRef.current && !audioRef.current?.ended) {
+      schedulePlaybackRecovery("unexpected_pause");
+    }
   };
 
   const recordStyle = { "--record": current.album.color } as CSSProperties;
@@ -446,24 +600,47 @@ export default function Home() {
         <div className="screen">
           <audio
             ref={audioRef}
-            src={currentSrc}
+            src={playbackSrc}
             preload="auto"
-            onLoadStart={() => setIsBuffering(isPlaying)}
+            playsInline
+            onLoadStart={() => setIsBuffering(shouldBePlaying.current)}
             onWaiting={() => recordBuffering("waiting")}
             onStalled={() => recordBuffering("stalled")}
-            onLoadedMetadata={(event) => setMediaDuration(event.currentTarget.duration)}
-            onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)}
+            onLoadedMetadata={(event) => {
+              setMediaDuration(event.currentTarget.duration);
+              if (recoveryPosition.current !== null) {
+                try { event.currentTarget.currentTime = recoveryPosition.current; } catch { /* wait for canplay */ }
+              }
+            }}
+            onTimeUpdate={(event) => {
+              const next = event.currentTarget.currentTime;
+              progressRef.current = next;
+              lastProgressAt.current = playbackClock();
+              setProgress(next);
+            }}
             onCanPlay={(event) => {
               setIsBuffering(false);
-              if (isPlaying) void event.currentTarget.play().catch(() => setIsPlaying(false));
+              if (recoveryPosition.current !== null) {
+                try { event.currentTarget.currentTime = recoveryPosition.current; } catch { /* retry after reload */ }
+              }
+              if (shouldBePlaying.current) {
+                void event.currentTarget.play().catch(() => schedulePlaybackRecovery("canplay_resume_failed"));
+              }
             }}
             onPlaying={recordPlaying}
+            onPause={recordUnexpectedPause}
             onError={() => {
-              setIsBuffering(false);
-              setIsPlaying(false);
-              captureTrackEvent("playback_error", { position_seconds: Math.floor(progress) });
+              captureTrackEvent("playback_error", {
+                reason: "media_error",
+                media_error_code: audioRef.current?.error?.code,
+                position_seconds: Math.floor(progressRef.current),
+              });
+              if (shouldBePlaying.current) schedulePlaybackRecovery("media_error");
+              else setIsBuffering(false);
             }}
             onEnded={() => {
+              shouldBePlaying.current = false;
+              resetRecovery();
               captureTrackEvent("playback_completed");
               setIsPlaying(false);
             }}

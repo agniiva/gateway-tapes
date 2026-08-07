@@ -13,6 +13,8 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "r2:check": "node --env-file=.env scripts/check-r2.mjs",
+    "r2:verify-audio": "node --env-file=.env scripts/verify-r2-audio.mjs",
+    "r2:verify-audio:decode": "node --env-file=.env scripts/verify-r2-audio.mjs --decode",
     "r2:upload": "node --env-file=.env scripts/upload-r2.mjs",
     "r2:upload:dry": "node --env-file=.env scripts/upload-r2.mjs --dry-run",
     "r2:upload:pdfs": "node --env-file=.env scripts/upload-pdfs-r2.mjs",
