@@ -26,6 +26,9 @@ test("ships direct Gateway Tapes email access and protected library", async () =
   assert.match(player, /MAX_RECOVERY_ATTEMPTS/);
   assert.match(player, /playback_recovery_attempted/);
   assert.match(player, /stream_attempt=/);
+  assert.match(player, /prepareScratchAudio/);
+  assert.match(player, /createBiquadFilter/);
+  assert.match(player, /lastScrubHapticAt/);
   assert.match(player, /Rewind 10 seconds/);
   assert.match(player, /Fast-forward 10 seconds/);
   assert.match(player, /Download .* as FLAC/);

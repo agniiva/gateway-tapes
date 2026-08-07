@@ -22,6 +22,7 @@ import PdfReader from "./PdfReader";
 type Track = { id: string; title: string; duration: number; src?: string };
 type Album = { id: string; roman: string; title: string; color: string; manualPages: number; tracks: Track[] };
 type MediaAsset = { trackId: string; fileName: string; size: number; updatedAt: string; url: string };
+type ScratchAudio = { context: AudioContext; noise: AudioBuffer; lastBurstAt: number };
 
 const ALBUMS: Album[] = [
   {
@@ -142,7 +143,9 @@ export default function Home() {
   const lastFrame = useRef<number | null>(null);
   const seekWasPlaying = useRef(false);
   const rangeSeekStart = useRef({ progress: 0, rotation: 0 });
-  const discScrub = useRef<{ pointerId: number; lastAngle: number } | null>(null);
+  const discScrub = useRef<{ pointerId: number; lastAngle: number; lastMovedAt: number } | null>(null);
+  const scratchAudio = useRef<ScratchAudio | null>(null);
+  const lastScrubHapticAt = useRef(0);
   const savedProgress = useRef<Record<string, number>>({});
   const lastSavedAt = useRef(0);
   const seekMethod = useRef<"rail" | "disc">("rail");
@@ -374,6 +377,75 @@ export default function Home() {
     };
   }, [isBuffering, isPlaying, isSeeking]);
 
+  useEffect(() => () => {
+    const context = scratchAudio.current?.context;
+    scratchAudio.current = null;
+    if (context && context.state !== "closed") void context.close();
+  }, []);
+
+  const prepareScratchAudio = () => {
+    if (!scratchAudio.current) {
+      const AudioContextClass = window.AudioContext
+        ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextClass) return null;
+      const context = new AudioContextClass();
+      const noise = context.createBuffer(1, Math.ceil(context.sampleRate * 0.14), context.sampleRate);
+      const samples = noise.getChannelData(0);
+      let previous = 0;
+      let noiseSeed = 0x51f15e;
+      for (let index = 0; index < samples.length; index += 1) {
+        noiseSeed = (noiseSeed * 1664525 + 1013904223) >>> 0;
+        const white = noiseSeed / 0xffffffff * 2 - 1;
+        previous = white * 0.72 + previous * 0.28;
+        const envelope = Math.sin(Math.PI * index / samples.length);
+        samples[index] = previous * envelope;
+      }
+      scratchAudio.current = { context, noise, lastBurstAt: 0 };
+    }
+    if (scratchAudio.current.context.state === "suspended") {
+      void scratchAudio.current.context.resume();
+    }
+    return scratchAudio.current;
+  };
+
+  const emitScratch = (delta: number, elapsed: number) => {
+    if (Math.abs(delta) < 0.25) return;
+    const scratch = prepareScratchAudio();
+    if (!scratch || scratch.context.state !== "running") return;
+    const now = scratch.context.currentTime;
+    if (now - scratch.lastBurstAt < 0.026) return;
+    scratch.lastBurstAt = now;
+
+    const speed = Math.min(1, Math.abs(delta) / Math.max(elapsed, 8) / 0.7);
+    const duration = 0.045 + speed * 0.055;
+    const source = scratch.context.createBufferSource();
+    const filter = scratch.context.createBiquadFilter();
+    const gain = scratch.context.createGain();
+    source.buffer = scratch.noise;
+    source.playbackRate.value = delta < 0 ? 0.72 + speed * 0.38 : 0.95 + speed * 0.72;
+    filter.type = "bandpass";
+    filter.frequency.value = 620 + speed * 1700;
+    filter.Q.value = 0.7 + speed * 0.9;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.018 + speed * 0.035, now + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    source.connect(filter).connect(gain).connect(scratch.context.destination);
+    source.addEventListener("ended", () => {
+      source.disconnect();
+      filter.disconnect();
+      gain.disconnect();
+    }, { once: true });
+    source.start(now);
+    source.stop(now + duration);
+
+    const hapticNow = playbackClock();
+    const hapticInterval = 70 - speed * 34;
+    if (hapticNow - lastScrubHapticAt.current >= hapticInterval && "vibrate" in navigator) {
+      lastScrubHapticAt.current = hapticNow;
+      navigator.vibrate(speed > 0.65 ? 7 : 4);
+    }
+  };
+
   const selectTrack = (nextId: string, continuePlaying = false) => {
     captureTrackEvent("session_selected", { playback_requested: continuePlaying, started_from_beginning: true }, nextId);
     resetRecovery();
@@ -484,8 +556,9 @@ export default function Home() {
   const beginDiscScrub = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
+    prepareScratchAudio();
     beginSeeking("disc");
-    discScrub.current = { pointerId: event.pointerId, lastAngle: pointerAngle(event) };
+    discScrub.current = { pointerId: event.pointerId, lastAngle: pointerAngle(event), lastMovedAt: playbackClock() };
   };
 
   const moveDiscScrub = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -494,7 +567,11 @@ export default function Home() {
     let delta = angle - discScrub.current.lastAngle;
     if (delta > 180) delta -= 360;
     if (delta < -180) delta += 360;
+    const movedAt = playbackClock();
+    const elapsed = movedAt - discScrub.current.lastMovedAt;
     discScrub.current.lastAngle = angle;
+    discScrub.current.lastMovedAt = movedAt;
+    emitScratch(delta, elapsed);
     setDiscAngle(discRotation.current + delta);
     setProgress((value) => {
       const next = Math.max(0, Math.min(duration, value + (delta / 360) * 20));
@@ -506,6 +583,7 @@ export default function Home() {
   const endDiscScrub = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!discScrub.current || discScrub.current.pointerId !== event.pointerId) return;
     discScrub.current = null;
+    if ("vibrate" in navigator) navigator.vibrate(0);
     endSeeking();
   };
 

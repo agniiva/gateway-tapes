@@ -22,7 +22,7 @@ The result is an installable web application that feels closer to a dedicated li
 - Streams original lossless FLAC files from Cloudflare R2 with HTTP range support.
 - Uses bounded stream segments and automatically reconnects at the same position after a stalled mobile connection.
 - Starts a selected session immediately from the beginning.
-- Provides tactile disc scrubbing, a stable seek rail, and ten-second rewind/forward controls.
+- Provides speed-responsive scratch audio and supported-device haptics while disc scrubbing, plus a stable seek rail and ten-second rewind/forward controls.
 - Keeps a persistent mini player when moving between the library, player, and manuals.
 - Saves playback position, favorites, and the current session on the device.
 - Downloads the current original-quality FLAC through the authenticated media route.
